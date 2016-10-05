@@ -35,7 +35,7 @@
     This file contains several invariants of [initPEntryTable] and associated lemmas *)
 Require Import Core.Internal Isolation Consistency WeakestPreconditions Invariants.
 Require Import StateLib Model.Hardware Model.ADT DependentTypeLemmas 
-WritePhyEntry WriteAccessibleRec Model.Lib InternalLemmas.
+WritePhyEntry Model.Lib InternalLemmas CreatePartitionPropagatedProperties.
 Require Import Coq.Logic.ProofIrrelevance Omega Model.MAL List Bool.
 
 Lemma initPEntryTableNewProperty table (curidx : index):
@@ -142,7 +142,7 @@ induction n.  simpl.
    intuition.
    subst.
    symmetry in Hidx'.
-   apply  ltbIndexTrue in Hidx'.
+   apply  indexltbTrue in Hidx'.
    unfold CIndex in Hidx'.
    destruct (lt_dec (tableSize - 1) tableSize).
    simpl in *. assumption. contradict n0.
@@ -272,14 +272,14 @@ induction n.  simpl.
       omega. }
     destruct H2.
     symmetry in H1.
-    apply ltbIndexFalse in H1.
+    apply indexltbFalse in H1.
     generalize (H idx);clear H;intros Hmaxi.
     apply Hmaxi. subst.
     apply indexBoundEq in H1.
     subst.
     assumption.
     symmetry in H1.
-    apply ltbIndexFalse in H1.
+    apply indexltbFalse in H1.
     apply indexBoundEq in H1.
     subst.
     assumption.
@@ -427,7 +427,7 @@ induction n.  simpl.
    intuition.
    subst.
    symmetry in Hidx'.
-   apply  ltbIndexTrue in Hidx'.
+   apply  indexltbTrue in Hidx'.
    unfold CIndex in Hidx'.
    destruct (lt_dec (tableSize - 1) tableSize).
    simpl in *. assumption. contradict n0.
@@ -655,7 +655,7 @@ induction n.  simpl.
     split. 
     intros. 
 (** readPhyEntry : read the content of a mapped page **)      
-    generalize (Htable idx); clear Htable; intros Htable.
+    { generalize (Htable idx); clear Htable; intros Htable.
     rewrite <- Htable.
     symmetry.
     apply readPhyEntryUpdateMappedPageData; trivial. 
@@ -668,7 +668,7 @@ induction n.  simpl.
     contradict Hfalse.
     apply readMappedPageDataUpdateMappedPageData 
     with partition  table2 table1  idxVa2 idxVa1
-    va2 va1 level s; trivial.
+    va2 va1 level s; trivial. }
     split.
     unfold s'. 
     intros. contradict H1.
@@ -737,7 +737,7 @@ induction n.  simpl.
      intuition.
      subst.
      symmetry in Hidx'.
-     apply  ltbIndexTrue in Hidx'.
+     apply  indexltbTrue in Hidx'.
      unfold CIndex in Hidx'.
      destruct (lt_dec (tableSize - 1) tableSize).
      simpl in *. assumption. contradict n0.

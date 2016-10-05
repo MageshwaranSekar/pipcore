@@ -273,26 +273,41 @@ Definition createPartition (descChild pdChild shadow1Child shadow2Child
         (** Add descChild and its physical address into itself (the partion descriptor) *)
         perform idxPR := getPRidx in
         updatePartitionRef phyDescChild idxPR phyDescChild descChild ;;
+
         (** Add pdChild and its physical address into the partition descriptor page *)
         perform idxPD := getPDidx in
         updatePartitionRef phyDescChild idxPD phyPDChild pdChild ;;
+
         (** Add shadow1Child and its physical address into the partition descriptor *)
         perform idxSh1 := getSh1idx in
         updatePartitionRef phyDescChild idxSh1 phySh1Child shadow1Child ;;
+
         (** Add shadow2Child and its physical address into the partition descriptor *)
         perform idxSh2 := getSh2idx in
         updatePartitionRef phyDescChild idxSh2 phySh2Child shadow2Child ;;
+
         (** Add ConfigPagesList and its physical address into the partition descriptor *)
         perform idxListConf := getSh3idx in
         updatePartitionRef phyDescChild idxListConf phyConfigPagesList ConfigPagesList ;;
+
         (** Add parent physical address into the partition descriptor of the child*)
         perform idxPRP := getPPRidx in
         perform nullVA :=  getDefaultVAddr in
         updatePartitionRef phyDescChild idxPRP currentPart nullVA ;;
+
         (** Add the kernel mapping *)
         perform kidx := getKidx in
         perform  kernel := readPhyEntry currentPD kidx in
         writePhyEntry phyPDChild kidx kernel true false false true false ;; 
+
+        (** Set the virtual address pdChild as derived by the new child *)
+        writeVirEntry ptPDChildFromSh1 idxPDChild descChild ;;
+        (**  Set the virtual address shadow1Child as derived by the new child *)
+        writeVirEntry ptSh1ChildFromSh1 idxSh1Child descChild ;; 
+        (**  Set the virtual address shadow2Child as derived by the new child *)
+        writeVirEntry ptSh2ChildFromSh1 idxSh2Child descChild ;; 
+        (**  Set the virtual address list as derived by the new child *)
+        writeVirEntry ptConfigPagesListFromSh1 idxConfigPagesList descChild ;;
         (** Set the virtual address descChild as a partition (new child) in parent *)
         writePDflag ptDescChildFromSh1 idxDescChild true ;; 
         ret true

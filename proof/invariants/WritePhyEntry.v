@@ -35,14 +35,14 @@
     This file contains required lemmas to prove the [writePhyEntry] invariant *)
 Require Import Core.Internal Isolation Consistency WeakestPreconditions 
 Invariants StateLib Model.Hardware Model.ADT Model.MAL 
-DependentTypeLemmas Model.Lib InternalLemmas WriteAccessibleRec.
-Require Import Coq.Logic.ProofIrrelevance Omega List. 
+DependentTypeLemmas Model.Lib InternalLemmas WriteAccessibleRec CreatePartitionPropagatedProperties.
+Require Import Coq.Logic.ProofIrrelevance Omega List Bool. 
 
-Lemma readPhysicalUpdateMappedPageData partition table idxroot page s idx u p e w r :
+Lemma readPhysicalUpdateMappedPageData partition table idxroot  s idx x :
 (* lookup table idx (memory s) beqPage beqIndex = None ->  *)
 table <> partition -> 
 StateLib.readPhysical partition idxroot
-  (add table idx (PE {| read := r; write := w; exec := e; present := p; user := u; pa := page |}) 
+  (add table idx x
      (memory s) beqPage beqIndex) = StateLib.readPhysical partition idxroot (memory s).
 Proof.
 intros.
@@ -60,10 +60,54 @@ apply beqPairsFalse in Hpairs.
      rewrite Hmemory. reflexivity.
 Qed.
 
-Lemma getPdUpdateMappedPageData partition table idx s page u p e w r: 
+Lemma readVirtualUpdateMappedPageData partition table idxroot  s idx x :
+(* lookup table idx (memory s) beqPage beqIndex = None ->  *)
+table <> partition -> 
+StateLib.readVirtual partition idxroot
+  (add table idx x
+     (memory s) beqPage beqIndex) = StateLib.readVirtual partition idxroot (memory s).
+Proof.
+intros.
+cbn.
+unfold StateLib.readVirtual.
+cbn.
+case_eq (beqPairs (table, idx) (partition, idxroot) beqPage beqIndex); intros Hpairs.
+apply beqPairsTrue in Hpairs.
+destruct Hpairs as (Htable & Hidx);subst.
+(* rewrite H. trivial. *) now contradict H. 
+apply beqPairsFalse in Hpairs.
+   assert (lookup  partition idxroot (removeDup table idx (memory s) beqPage beqIndex)
+           beqPage beqIndex = lookup  partition idxroot   (memory s) beqPage beqIndex) as Hmemory.
+   { apply removeDupIdentity. intuition. }
+     rewrite Hmemory. reflexivity.
+Qed.
+
+Lemma readIndexUpdateMappedPageData partition table idxroot  s idx x :
+(* lookup table idx (memory s) beqPage beqIndex = None ->  *)
+table <> partition -> 
+StateLib.readIndex partition idxroot
+  (add table idx x
+     (memory s) beqPage beqIndex) = StateLib.readIndex partition idxroot (memory s).
+Proof.
+intros.
+cbn.
+unfold StateLib.readIndex.
+cbn.
+case_eq (beqPairs (table, idx) (partition, idxroot) beqPage beqIndex); intros Hpairs.
+apply beqPairsTrue in Hpairs.
+destruct Hpairs as (Htable & Hidx);subst.
+(* rewrite H. trivial. *) now contradict H. 
+apply beqPairsFalse in Hpairs.
+   assert (lookup  partition idxroot (removeDup table idx (memory s) beqPage beqIndex)
+           beqPage beqIndex = lookup  partition idxroot   (memory s) beqPage beqIndex) as Hmemory.
+   { apply removeDupIdentity. intuition. }
+     rewrite Hmemory. reflexivity.
+Qed.
+
+Lemma getPdUpdateMappedPageData partition table idx s x: 
 table <> partition ->
 StateLib.getPd partition
-  (add table idx (PE {| read := r; write := w; exec := e; present := p; user := u; pa := page |})
+  (add table idx x
      (memory s) beqPage beqIndex) = StateLib.getPd partition (memory s).
 Proof.
 cbn.
@@ -73,10 +117,10 @@ intros.
 apply readPhysicalUpdateMappedPageData; trivial.
 Qed. 
 
-Lemma getFstShadowUpdateMappedPageData partition table idx s page u p e w r: 
+Lemma getFstShadowUpdateMappedPageData partition table idx s x: 
 table <> partition ->
 StateLib.getFstShadow partition
-  (add table idx (PE {| read := r; write := w; exec := e; present := p; user := u; pa := page |})
+  (add table idx x
      (memory s) beqPage beqIndex) = StateLib.getFstShadow partition (memory s).
 Proof.
 cbn.
@@ -86,10 +130,10 @@ intros.
 apply readPhysicalUpdateMappedPageData; trivial.
 Qed. 
 
-Lemma getSndShadowUpdateMappedPageData partition table idx s page u p e w r: 
+Lemma getSndShadowUpdateMappedPageData partition table idx s x: 
 table <> partition ->
 StateLib.getSndShadow partition
-  (add table idx (PE {| read := r; write := w; exec := e; present := p; user := u; pa := page |})
+  (add table idx x
      (memory s) beqPage beqIndex) = StateLib.getSndShadow partition (memory s).
 Proof.
 cbn.
@@ -99,10 +143,10 @@ intros.
 apply readPhysicalUpdateMappedPageData; trivial.
 Qed.
 
-Lemma getTrdShadowUpdateMappedPageData partition table idx s page u p e w r: 
+Lemma getTrdShadowUpdateMappedPageData partition table idx s x: 
 table <> partition ->
 StateLib.getConfigTablesLinkedList partition
-  (add table idx (PE {| read := r; write := w; exec := e; present := p; user := u; pa := page |})
+  (add table idx x
      (memory s) beqPage beqIndex) = StateLib.getConfigTablesLinkedList partition (memory s).
 Proof.
 cbn.
@@ -112,31 +156,10 @@ intros.
 apply readPhysicalUpdateMappedPageData; trivial.
 Qed.
 
-Lemma getPdsVAddrUpdateMappedPageData partition table idx l paValue s  u p e w r: 
-getPdsVAddr partition l getAllVAddr
-  {|
-  currentPartition := currentPartition s;
-  memory := add table idx
-              (PE
-                 {|
-                 read := r;
-                 write := w;
-                 exec := e;
-                 present := p;
-                 user := u;
-                 pa := paValue |}) (memory s) beqPage
-              beqIndex |} =
-getPdsVAddr partition l getAllVAddr s.
-Proof.
-unfold getPdsVAddr.
-revert partition l.
-induction getAllVAddr; simpl;trivial. 
-intros.
 
-Admitted.
 
-Lemma getIndirectionUpdateMappedPageData tableRoot table idx paValue nbL
- (curlevel : level) va stop  u p e w r  s: 
+Lemma getIndirectionUpdateMappedPageData tableRoot table idx  nbL
+ (curlevel : level) va stop   x s: 
 
 Some nbL = StateLib.getNbLevel ->
 curlevel <= nbL -> 
@@ -145,32 +168,18 @@ curlevel <= nbL ->
     {|
     currentPartition := currentPartition s;
     memory := add table idx
-                (PE
-                   {|
-                   read := u;
-                   write := p;
-                   exec := e;
-                   present := w;
-                   user := r;
-                   pa := paValue |}) (memory s) beqPage beqIndex |} =  
+                x  (memory s) beqPage beqIndex |} =  
  getIndirection tableRoot va curlevel stop s.
 Proof.
 intros Hlevel Hcurlevel Hii.
 revert Hlevel Hcurlevel Hii.
-revert tableRoot table idx paValue nbL curlevel va.
+revert tableRoot table idx x nbL curlevel va.
 induction stop; simpl; intros.
 + f_equal.
 + case_eq (StateLib.Level.eqb curlevel fstLevel); intros;
   f_equal.  
   set (memory' := add table idx
-       (PE
-          {|
-           read := u;
-           write := p;
-           exec := e;
-           present := w;
-           user := r;
-          pa := paValue |}) (memory s) beqPage beqIndex) in *.
+       x (memory s) beqPage beqIndex) in *.
   set(curidx := StateLib.getIndexOfAddr va curlevel) in *.
   assert (StateLib.readPhyEntry tableRoot curidx (memory s)
   = StateLib.readPhyEntry tableRoot curidx memory' ).
@@ -190,7 +199,7 @@ induction stop; simpl; intros.
   clear H0.
   case_eq (StateLib.readPhyEntry tableRoot curidx (memory s));
   intros; trivial.
-  case_eq (defaultPage =? p0); intros; trivial.
+  case_eq (defaultPage =? p); intros; trivial.
   f_equal.
   case_eq (StateLib.Level.pred curlevel); intros; trivial.
   apply IHstop with nbL; trivial.
@@ -211,7 +220,7 @@ induction stop; simpl; intros.
   unfold not  in *.
   intros.
   contradict H4.
-  exists p0.
+  exists p.
   split.
   apply readPhyEntryInGetTablePages with curidx; trivial.
   trivial.
@@ -223,13 +232,13 @@ induction stop; simpl; intros.
   contradict H1.
   rewrite H4. reflexivity.
   assert (curidx = (CIndex curidx)) as Hcidx.
-  symmetry. apply CIndexEq. rewrite <- Hcidx. assumption.
+  symmetry. apply indexEqId. rewrite <- Hcidx. assumption.
   simpl. subst. left. trivial.
   rewrite in_flat_map in H4.
   unfold not  in *.
   intros.
   contradict H4.
-  exists p0.
+  exists p.
   split. trivial.
   apply readPhyEntryInGetTablePages with curidx; trivial.
   trivial.
@@ -241,27 +250,135 @@ induction stop; simpl; intros.
   contradict H1.
   rewrite H4. reflexivity.
   assert (curidx = (CIndex curidx)) as Hcidx.
-  symmetry. apply CIndexEq. rewrite <- Hcidx. assumption.
+  symmetry. apply indexEqId. rewrite <- Hcidx. assumption.
   simpl. subst. right. assumption.
 Qed.
 
-Lemma getMappedPagesAuxUpdateMappedPageData pd table idx listVA paValue s nbL  u p e w r :
+Lemma checkChildUpdateMappedPageData partition  s a table idx   x nbL: 
+In partition (getPartitions multiplexer s) -> 
+partitionDescriptorEntry s ->
+~ In table (getConfigPages partition s) -> 
+Some nbL = StateLib.getNbLevel -> 
+ table<>partition ->
+StateLib.checkChild partition nbL
+   {|
+    currentPartition := currentPartition s;
+    memory := add table idx
+                x (memory s) beqPage beqIndex |} a =
+StateLib.checkChild partition nbL s a.
+Proof. 
+unfold StateLib.checkChild.
+intros.
+set (s' :=  {|
+    currentPartition := currentPartition s;
+    memory := add table idx
+                x (memory s) beqPage beqIndex |}  ) in *.
+assert( StateLib.getFstShadow partition (memory s')= StateLib.getFstShadow partition (memory s) ) as Hfstsh.
+apply getFstShadowUpdateMappedPageData ;trivial.
+rewrite Hfstsh. 
+case_eq (StateLib.getFstShadow partition (memory s));trivial.
++ intros.
+ assert (getIndirection p a nbL (nbLevel - 1)  s' = getIndirection p a nbL (nbLevel - 1)  s) as Hind.
+  { apply getIndirectionUpdateMappedPageData with nbL ;trivial.
+    assert(0 < nbLevel) by apply nbLevelNotZero.
+    replace (S (nbLevel - 1)) with nbLevel by omega.
+    apply notConfigTableNotSh1configTable with partition; trivial.
+    unfold getConfigPages in *.
+    simpl in *.
+    apply Classical_Prop.not_or_and in H1.
+    destruct H1.
+    assumption. }
+  rewrite Hind.
+ case_eq (getIndirection p a nbL (nbLevel - 1) s); intros.
+ case_eq(p0 =? defaultPage); intros; trivial.
+  assert (StateLib.readPDflag p0 (StateLib.getIndexOfAddr a fstLevel) (memory s') = 
+  StateLib.readPDflag p0 (StateLib.getIndexOfAddr a fstLevel) (memory s)) as Hpdflag.
+  unfold StateLib.readPDflag.
+  unfold s'.
+  cbn.
+  assert (table <> p0).
+  assert (In p0 (getIndirections p s)).
+  apply getIndirectionInGetIndirections with a nbL (nbLevel - 1); trivial.
+  assert (0 < nbLevel) by apply nbLevelNotZero.
+  omega.
+  apply beq_nat_false in H6.
+  unfold not; intros;subst.
+  now contradict H6.
+  apply getNbLevelEq in H2.
+  rewrite H2.
+  omega.
+  unfold partitionDescriptorEntry in *.
+  apply H0  with partition sh1idx in H; clear H0.
+  destruct H as (_ & _ & entrypd & Hpp & Hnotnul).
+  apply nextEntryIsPPgetFstShadow in Hpp.
+  rewrite Hpp in H4.
+  inversion H4.
+  subst.
+  unfold not; intros; subst; now contradict Hnotnul.
+  right; left; trivial.
+  unfold getIndirections in H7.
+  unfold not; intros; subst.
+  assert(~ In p0 (getIndirectionsAux p s nbLevel)).
+  apply notConfigTableNotSh1configTable with partition; trivial.
+  unfold getConfigPages in *.
+  simpl in *.
+  apply Classical_Prop.not_or_and in H1.
+  destruct H1.
+  assumption.
+  now contradict H8.
+  assert (Hfalse : beqPairs (table, idx) (p0, StateLib.getIndexOfAddr a fstLevel) 
+          beqPage beqIndex = false).
+  apply beqPairsFalse.
+  left. assumption.
+  rewrite Hfalse.
+  assert(Hmemory :  lookup p0 (StateLib.getIndexOfAddr a fstLevel) (removeDup table idx (memory s) beqPage beqIndex) beqPage beqIndex
+  =  lookup p0 (StateLib.getIndexOfAddr a fstLevel)(memory s) beqPage beqIndex).
+  apply removeDupIdentity; trivial.
+  left; unfold not; intros ; subst; now contradict H7.
+  rewrite Hmemory.
+  reflexivity.
+  rewrite Hpdflag. reflexivity. trivial.
+Qed.
+
+Lemma getPdsVAddrUpdateMappedPageData partition table idx nbL x s: 
+In partition (getPartitions multiplexer s) -> 
+partitionDescriptorEntry s ->
+~ In table (getConfigPages partition s) -> 
+Some nbL = StateLib.getNbLevel -> 
+ table<>partition ->
+getPdsVAddr partition nbL getAllVAddr
+  {|
+  currentPartition := currentPartition s;
+  memory := add table idx
+              x(memory s) beqPage
+              beqIndex |} =
+getPdsVAddr partition nbL getAllVAddr s.
+Proof.
+unfold getPdsVAddr.
+revert partition nbL.
+induction getAllVAddr; simpl;trivial.
+intros. 
+assert(checkChild partition nbL
+    {|
+    currentPartition := currentPartition s;
+    memory := add table idx x
+                (memory s) beqPage beqIndex |} a  =   checkChild partition nbL s a).
+apply checkChildUpdateMappedPageData;trivial.
+rewrite H4. 
+case_eq (checkChild partition nbL s a); intros.
+f_equal.
+apply IHl; trivial.
+apply IHl; trivial.
+Qed.
+
+Lemma getMappedPagesAuxUpdateMappedPageData pd table idx listVA  s nbL x :
 table <> defaultPage -> pd <> defaultPage ->
 ~ In table (getIndirectionsAux pd s nbLevel) ->
 Some nbL = StateLib.getNbLevel -> 
 getMappedPagesAux pd listVA
   {|
   currentPartition := currentPartition s;
-  memory := add table idx
-              (PE
-                 {|
-                 read := r;
-                 write := w;
-                 exec := e;
-                 present := p;
-                 user := u;
-                 pa := paValue |}) (memory s) beqPage
-              beqIndex |} =
+  memory := add table idx x (memory s) beqPage beqIndex |} =
 getMappedPagesAux pd listVA s.
 Proof.
 intros Htablenotnull Hpdnotnull Hindirections HnbL.
@@ -278,7 +395,7 @@ assert(Hind : getIndirection pd a nbL (nbLevel - 1)
     {|
     currentPartition := currentPartition s;
     memory := add table idx
-                (PE {| read := r; write := w; exec := e; present := p; user := u; pa := paValue |})
+                x
                 (memory s) beqPage beqIndex |} = getIndirection pd a nbL (nbLevel - 1) s).
 apply getIndirectionUpdateMappedPageData with nbL; auto.
 assert(0<nbLevel) by apply nbLevelNotZero.
@@ -290,7 +407,7 @@ rewrite Hind.
 case_eq (getIndirection pd a nbL (nbLevel - 1) s); intros; trivial.
 cbn.            
 set(curidx := (StateLib.getIndexOfAddr a fstLevel)) in *.
-assert(p0 <> table).
+assert(p <> table).
 clear IHlistVA.
 unfold not in *.
 intros.
@@ -299,41 +416,33 @@ apply Hindirections.
 apply getIndirectionInGetIndirections with a nbL (nbLevel -1); trivial.
 apply nbLevelNotZero.
 apply getNbLevelLe; trivial.
-assert(Hpres : StateLib.readPresent p0 curidx
-    (add table idx
-       (PE
-          {|
-          read := r;
-          write := w;
-          exec := e;
-          present := p;
-          user := u;
-          pa := paValue |}) (memory s) beqPage beqIndex) = 
- StateLib.readPresent p0 curidx (memory s)).
+assert(Hpres : StateLib.readPresent p curidx
+    (add table idx x (memory s) beqPage beqIndex) = 
+ StateLib.readPresent p curidx (memory s)).
  unfold StateLib.readPresent.
  cbn.
- assert (Hfalse : beqPairs (table, idx) (p0, curidx) beqPage beqIndex = false).
+ assert (Hfalse : beqPairs (table, idx) (p, curidx) beqPage beqIndex = false).
     apply beqPairsFalse; intuition.
     rewrite Hfalse.
-    assert ( lookup p0 curidx (removeDup table idx (memory s) beqPage beqIndex) beqPage beqIndex 
-              = lookup p0 curidx (memory s) beqPage beqIndex) as Hmemory.
+    assert ( lookup p curidx (removeDup table idx (memory s) beqPage beqIndex) beqPage beqIndex 
+              = lookup p curidx (memory s) beqPage beqIndex) as Hmemory.
       { apply removeDupIdentity. subst.  intuition. }
     rewrite  Hmemory; clear Hmemory; reflexivity.
  rewrite Hpres; trivial.
- case_eq (StateLib.readPresent p0 curidx (memory s)); intros; trivial.
+ case_eq (StateLib.readPresent p curidx (memory s)); intros; trivial.
  case_eq b; intros; trivial.
  unfold StateLib.readPhyEntry.
  cbn.
- assert (Hfalse : beqPairs (table, idx) (p0, curidx) beqPage beqIndex = false).
+ assert (Hfalse : beqPairs (table, idx) (p, curidx) beqPage beqIndex = false).
     apply beqPairsFalse; intuition.
     rewrite Hfalse.
-    assert ( lookup p0 curidx (removeDup table idx (memory s) beqPage beqIndex) beqPage beqIndex 
-              = lookup p0 curidx (memory s) beqPage beqIndex) as Hmemory.
+    assert ( lookup p curidx (removeDup table idx (memory s) beqPage beqIndex) beqPage beqIndex 
+              = lookup p curidx (memory s) beqPage beqIndex) as Hmemory.
       { apply removeDupIdentity. subst.  intuition. }
     rewrite  Hmemory; clear Hmemory; reflexivity.
 Qed.
 
-Lemma getMappedPagesUpdateMappedPageData partition (table : page) idx pValue level r w e p u s: 
+Lemma getMappedPagesUpdateMappedPageData partition (table : page) idx level x s: 
 partitionDescriptorEntry s -> 
 (defaultPage =? table) = false -> 
 Some level = StateLib.getNbLevel-> 
@@ -345,28 +454,17 @@ Some level = StateLib.getNbLevel->
 getMappedPages partition
   {|
   currentPartition := currentPartition s; 
-  memory := add table idx
-              (PE
-                 {|
-                 read := r;
-                 write := w;
-                 exec := e;
-                 present := p;
-                 user := u;
-                 pa := pValue |}) (memory s) beqPage beqIndex |} =
+  memory := add table idx x (memory s) beqPage beqIndex |} =
 getMappedPages partition s. 
 Proof.
 intros Hpde Hfalse Hlevel Hpartmult Hconfig. 
 set(s' :=  {|
   currentPartition := currentPartition s;
-  memory := add table idx
-              (PE {| read := r; write := w; exec := e; present := p; user := u; pa := pValue |})
-              (memory s) beqPage beqIndex |}) in *.
+  memory := add table idx x (memory s) beqPage beqIndex |}) in *.
 unfold getMappedPages.
- assert(Hpd : StateLib.getPd partition (memory s') =
+assert(Hpd : StateLib.getPd partition (memory s') =
               StateLib.getPd partition (memory s)).
   { apply getPdUpdateMappedPageData.
-
     generalize (Hconfig partition Hpartmult); clear Hconfig; intros Hconfig.
     unfold not.
     intros. apply Hconfig.
@@ -377,7 +475,6 @@ destruct (StateLib.getPd partition (memory s)); trivial.
 assert(Hpdchild1 : StateLib.getPd partition (memory s') =
               StateLib.getPd partition (memory s)).
 { apply getPdUpdateMappedPageData.
-
   generalize (Hconfig partition Hpartmult); clear Hconfig; intros Hconfig.
   unfold not.
   intros. apply Hconfig.
@@ -395,7 +492,7 @@ apply getMappedPagesAuxUpdateMappedPageData with level; trivial.
   destruct Hpartmult as (_ & _ & entrypd & Hpp & Hnotnul).
   rewrite Hpdchild1 in Hpd.
   clear Hpdchild1.
-  assert (Heq : entrypd = p0).
+  assert (Heq : entrypd = p).
   apply getPdNextEntryIsPPEq with partition s; trivial.
   rewrite <- Heq; assumption.
  left; trivial. }
@@ -407,23 +504,14 @@ apply getMappedPagesAuxUpdateMappedPageData with level; trivial.
       rewrite <- Hpdchild1; trivial. }
 Qed.
 
-Lemma getAccessibleMappedPagesAuxUpdateMappedPageData pd table idx listVA paValue s nbL  
-u p e w r :
+Lemma getAccessibleMappedPagesAuxUpdateMappedPageData pd table idx listVA s nbL x :
 table <> defaultPage -> pd <> defaultPage ->
 ~ In table (getIndirectionsAux pd s nbLevel) ->
 Some nbL = StateLib.getNbLevel -> 
 getAccessibleMappedPagesAux pd listVA
   {|
   currentPartition := currentPartition s;
-  memory := add table idx
-              (PE
-                 {|
-                 read := r;
-                 write := w;
-                 exec := e;
-                 present := p;
-                 user := u;
-                 pa := paValue |}) (memory s) beqPage
+  memory := add table idx x (memory s) beqPage
               beqIndex |} =
 getAccessibleMappedPagesAux pd listVA s.
 Proof.
@@ -440,8 +528,7 @@ rewrite <- HnbL.
 assert(Hind : getIndirection pd a nbL (nbLevel - 1)
     {|
     currentPartition := currentPartition s;
-    memory := add table idx
-                (PE {| read := r; write := w; exec := e; present := p; user := u; pa := paValue |})
+    memory := add table idx x
                 (memory s) beqPage beqIndex |} = getIndirection pd a nbL (nbLevel - 1) s).
 apply getIndirectionUpdateMappedPageData with nbL; auto.
 assert(0<nbLevel) by apply nbLevelNotZero.
@@ -453,7 +540,7 @@ rewrite Hind.
 case_eq (getIndirection pd a nbL (nbLevel - 1) s); intros; trivial.
 cbn.            
 set(curidx := (StateLib.getIndexOfAddr a fstLevel)) in *.
-assert(p0 <> table).
+assert(p <> table).
 clear IHlistVA.
 unfold not in *.
 intros.
@@ -462,66 +549,51 @@ apply Hindirections.
 apply getIndirectionInGetIndirections with a nbL (nbLevel -1); trivial.
 apply nbLevelNotZero.
 apply getNbLevelLe; trivial.
-assert(Hpres : StateLib.readPresent p0 curidx
-    (add table idx
-       (PE
-          {|
-          read := r;
-          write := w;
-          exec := e;
-          present := p;
-          user := u;
-          pa := paValue |}) (memory s) beqPage beqIndex) = 
- StateLib.readPresent p0 curidx (memory s)).
+assert(Hpres : StateLib.readPresent p curidx
+    (add table idx x (memory s) beqPage beqIndex) = 
+ StateLib.readPresent p curidx (memory s)).
  unfold StateLib.readPresent.
  cbn.
- assert (Hfalse : beqPairs (table, idx) (p0, curidx) beqPage beqIndex = false).
+ assert (Hfalse : beqPairs (table, idx) (p, curidx) beqPage beqIndex = false).
     apply beqPairsFalse; intuition.
     rewrite Hfalse.
-    assert ( lookup p0 curidx (removeDup table idx (memory s) beqPage beqIndex) beqPage beqIndex 
-              = lookup p0 curidx (memory s) beqPage beqIndex) as Hmemory.
+    assert ( lookup p curidx (removeDup table idx (memory s) beqPage beqIndex) beqPage beqIndex 
+              = lookup p curidx (memory s) beqPage beqIndex) as Hmemory.
       { apply removeDupIdentity. subst.  intuition. }
     rewrite  Hmemory; clear Hmemory; reflexivity.
  rewrite Hpres; trivial.
- case_eq (StateLib.readPresent p0 curidx (memory s)); intros; trivial.
+ case_eq (StateLib.readPresent p curidx (memory s)); intros; trivial.
  case_eq b; intros; trivial.
-assert(Haccess : StateLib.readAccessible p0 curidx
+assert(Haccess : StateLib.readAccessible p curidx
     (add table idx
-       (PE
-          {|
-          read := r;
-          write := w;
-          exec := e;
-          present := p;
-          user := u;
-          pa := paValue |}) (memory s) beqPage beqIndex) = 
- StateLib.readAccessible p0 curidx (memory s)).
+       x (memory s) beqPage beqIndex) = 
+ StateLib.readAccessible p curidx (memory s)).
  unfold StateLib.readAccessible.
  cbn.
- assert (Hfalse : beqPairs (table, idx) (p0, curidx) beqPage beqIndex = false).
+ assert (Hfalse : beqPairs (table, idx) (p, curidx) beqPage beqIndex = false).
     apply beqPairsFalse; intuition.
     rewrite Hfalse.
-    assert ( lookup p0 curidx (removeDup table idx (memory s) beqPage beqIndex) beqPage beqIndex 
-              = lookup p0 curidx (memory s) beqPage beqIndex) as Hmemory.
+    assert ( lookup p curidx (removeDup table idx (memory s) beqPage beqIndex) beqPage beqIndex 
+              = lookup p curidx (memory s) beqPage beqIndex) as Hmemory.
       { apply removeDupIdentity. subst.  intuition. }
     rewrite  Hmemory; clear Hmemory; reflexivity.
  rewrite Haccess; trivial.
- case_eq (StateLib.readAccessible p0 curidx (memory s)); intros; trivial.
+ case_eq (StateLib.readAccessible p curidx (memory s)); intros; trivial.
  case_eq b0; intros; trivial. 
  
  unfold StateLib.readPhyEntry.
  cbn.
- assert (Hfalse : beqPairs (table, idx) (p0, curidx) beqPage beqIndex = false).
+ assert (Hfalse : beqPairs (table, idx) (p, curidx) beqPage beqIndex = false).
     apply beqPairsFalse; intuition.
     rewrite Hfalse.
-    assert ( lookup p0 curidx (removeDup table idx (memory s) beqPage beqIndex) beqPage beqIndex 
-              = lookup p0 curidx (memory s) beqPage beqIndex) as Hmemory.
+    assert ( lookup p curidx (removeDup table idx (memory s) beqPage beqIndex) beqPage beqIndex 
+              = lookup p curidx (memory s) beqPage beqIndex) as Hmemory.
       { apply removeDupIdentity. subst.  intuition. }
     rewrite  Hmemory; clear Hmemory; reflexivity.
 Qed.
 
 Lemma getAccessibleMappedPagesUpdateMappedPageData partition (table : page) 
-idx pValue level r w e p u s: 
+idx x level  s: 
 partitionDescriptorEntry s -> 
 (defaultPage =? table) = false -> 
 Some level = StateLib.getNbLevel-> 
@@ -534,21 +606,14 @@ getAccessibleMappedPages partition
   {|
   currentPartition := currentPartition s; 
   memory := add table idx
-              (PE
-                 {|
-                 read := r;
-                 write := w;
-                 exec := e;
-                 present := p;
-                 user := u;
-                 pa := pValue |}) (memory s) beqPage beqIndex |} =
+              x (memory s) beqPage beqIndex |} =
 getAccessibleMappedPages partition s. 
 Proof.
 intros Hpde Hfalse Hlevel Hpartmult Hconfig. 
 set(s' :=  {|
   currentPartition := currentPartition s;
   memory := add table idx
-              (PE {| read := r; write := w; exec := e; present := p; user := u; pa := pValue |})
+              x
               (memory s) beqPage beqIndex |}) in *.
 unfold getAccessibleMappedPages.
  assert(Hpd : StateLib.getPd partition (memory s') =
@@ -583,7 +648,7 @@ apply getAccessibleMappedPagesAuxUpdateMappedPageData with level; trivial.
   destruct Hpartmult as (_ & _ & entrypd & Hpp & Hnotnul).
   rewrite Hpdchild1 in Hpd.
   clear Hpdchild1.
-  assert (Heq : entrypd = p0).
+  assert (Heq : entrypd = p).
   apply getPdNextEntryIsPPEq with partition s; trivial.
   rewrite <- Heq; assumption.
  left; trivial. }
@@ -595,7 +660,7 @@ apply getAccessibleMappedPagesAuxUpdateMappedPageData with level; trivial.
       rewrite <- Hpdchild1; trivial. }
 Qed.
 
-Lemma getChildrenUpdateMappedPageData partition table idx s page r w e p u (* nbL *) (* pd *) :
+Lemma getChildrenUpdateMappedPageData partition table idx s x (* nbL *) (* pd *) :
 table <> defaultPage -> 
 (* pd <> defaultPage ->  *)
 (* Some pd = StateLib.getPd partition (memory s) ->  *)
@@ -608,7 +673,7 @@ getChildren partition
   {|
   currentPartition := currentPartition s;
   memory := add table idx
-              (PE {| read := r; write := w; exec := e; present := p; user := u; pa := page |}) 
+              x 
               (memory s) beqPage beqIndex |} = getChildren partition s.
 Proof.
 intros  Htablenotnull Hgetparts Hpde (* Hpdnotnull HgetPd *) Hind (* HnbLevel *) Hdiff.
@@ -619,7 +684,7 @@ assert ( StateLib.getPd partition
        {|
        currentPartition := currentPartition s;
        memory := add table idx
-                   (PE {| read := r; write := w; exec := e; present := p; user := u; pa := page |})
+                   x
                    (memory s) beqPage beqIndex |}) = StateLib.getPd partition (memory s)) as Hpd.
 apply getPdUpdateMappedPageData; trivial.
 rewrite Hpd; clear Hpd.
@@ -629,9 +694,10 @@ assert(getPdsVAddr partition l getAllVAddr
      {|
      currentPartition := currentPartition s;
      memory := add table idx
-                 (PE {| read := r; write := w; exec := e; present := p; user := u; pa := page |})
+                 x
                  (memory s) beqPage beqIndex |} = getPdsVAddr partition l getAllVAddr s) as Hvaddrpd.
-apply getPdsVAddrUpdateMappedPageData.
+apply getPdsVAddrUpdateMappedPageData; trivial.
+symmetry; assumption.
 rewrite Hvaddrpd; clear Hvaddrpd.
 apply getMappedPagesAuxUpdateMappedPageData with l; trivial.
 unfold partitionDescriptorEntry in *.
@@ -654,7 +720,7 @@ apply notConfigTableNotPdconfigTable with partition; trivial.
 auto.
 Qed.
 
-Lemma getPartitionAuxUpdateMappedPageData s pgValue table idx r w e u p : 
+Lemma getPartitionAuxUpdateMappedPageData s table idx x : 
 forall partition, 
 In partition (getPartitions multiplexer s) ->
 (forall subpartition, In subpartition  (getPartitions multiplexer s ) ->
@@ -664,7 +730,7 @@ partitionDescriptorEntry s ->
 getPartitionAux partition {|
   currentPartition := currentPartition s;
   memory := add table idx
-              (PE {| read := r; write := w; exec := e; present := p; user := u; pa := pgValue |})
+              x
               (memory s) beqPage beqIndex |} (nbPage+1) =
 getPartitionAux partition s (nbPage+1).
 Proof.
@@ -677,7 +743,7 @@ f_equal.
 set(s':=  {|
      currentPartition := currentPartition s;
      memory := add table idx
-                 (PE {| read := r; write := w; exec := e; present := p; user := u; pa := pgValue |})
+                 x
                  (memory s) beqPage beqIndex |}) in *.
                  unfold s'.
 rewrite getChildrenUpdateMappedPageData; auto.
@@ -704,7 +770,7 @@ fold s'.
   intuition.
 Qed.
 
-Lemma getPartitionsUpdateMappedPageData partition table idx s pgValue r w e p u:
+Lemma getPartitionsUpdateMappedPageData partition table idx s x:
 In partition (getPartitions multiplexer s) ->
 (forall subpartition, In subpartition  (getPartitions multiplexer s ) ->
 ~ In table (getConfigPages subpartition s)) -> 
@@ -712,8 +778,7 @@ table <> defaultPage ->
 partitionDescriptorEntry s ->
 getPartitions partition
   {| currentPartition := currentPartition s;
-     memory := add table idx (PE {| read := r; write := w; exec := e; 
-     present := p; user := u; pa := pgValue |}) (memory s) beqPage beqIndex |} = 
+     memory := add table idx x (memory s) beqPage beqIndex |} = 
 getPartitions partition s.
 Proof.
 intros.
@@ -721,20 +786,13 @@ unfold getPartitions.
 apply getPartitionAuxUpdateMappedPageData; trivial.
 Qed.
 
-Lemma getTablePagesUpdateMappedPageData table1 table2 idx paValue size s: 
+Lemma getTablePagesUpdateMappedPageData table1 table2 idx x size s: 
 table2 <> table1 -> 
 getTablePages table1 size
   {|
   currentPartition := currentPartition s;
   memory := add table2 idx
-              (PE
-                 {|
-                 read := false;
-                 write := false;
-                 exec := false;
-                 present := false;
-                 user := false;
-                 pa := paValue |}) (memory s) beqPage beqIndex |} =
+              x (memory s) beqPage beqIndex |} =
 getTablePages table1 size s.
 Proof.
 intros Htables.
@@ -745,14 +803,7 @@ simpl.
 set (s':= {|
       currentPartition := currentPartition s;
       memory := add table2 idx
-                  (PE
-                     {|
-                     read := false;
-                     write := false;
-                     exec := false;
-                     present := false;
-                     user := false;
-                     pa := paValue |}) (memory s) beqPage beqIndex |}) in *.
+                  x (memory s) beqPage beqIndex |}) in *.
 assert (Hfalse : beqPairs (table2, idx) (table1, CIndex size) beqPage beqIndex = false).
 apply beqPairsFalse; left;trivial.
 rewrite Hfalse.
@@ -769,13 +820,13 @@ rewrite Hfalse.
   apply IHsize].
 Qed.
 
-Lemma getIndirectionsAuxUpdateMappedPageData partition table idx paValue s nbL:
+Lemma getIndirectionsAuxUpdateMappedPageData partition table idx x s nbL:
 ~ In table (getIndirectionsAux partition s nbL) -> 
 getIndirectionsAux partition
   {|
   currentPartition := currentPartition s;
   memory := add table idx
-              (PE {| read := false; write := false; exec := false; present := false; user := false; pa := paValue |})
+              x
               (memory s) beqPage beqIndex |} nbL = getIndirectionsAux partition s nbL.
 Proof. 
 intros Hind.
@@ -786,13 +837,7 @@ intros.
 set (s' :=   {|
 currentPartition := currentPartition s;
 memory := add table idx
-       (PE
-        {| read := false;
-           write := false;
-           exec := false;
-           present := false;
-           user := false;
-           pa := paValue |}) (memory s) beqPage beqIndex |}) in *.
+       x (memory s) beqPage beqIndex |}) in *.
 simpl.
 f_equal.
 assert (getTablePages partition tableSize s' = 
@@ -808,7 +853,6 @@ assert (getTablePages partition tableSize s' =
 rewrite Htablepages.
 clear Htablepages.
 simpl in Hind.
-
 induction (getTablePages partition tableSize s); intros; trivial.
 simpl in *.
 apply Classical_Prop.not_or_and in Hind.
@@ -822,20 +866,13 @@ rewrite IHl.
   split; trivial.
 Qed.
 
-Lemma getTrdShadowsUpdateMappedPageData sh3 table idx paValue s :
+Lemma getTrdShadowsUpdateMappedPageData sh3 table idx x s :
 ~ In table (getTrdShadows sh3 s nbPage) -> 
 getTrdShadows sh3
   {|
   currentPartition := currentPartition s;
   memory := add table idx
-              (PE
-                 {|
-                 read := false;
-                 write := false;
-                 exec := false;
-                 present := false;
-                 user := false;
-                 pa := paValue |}) (memory s) beqPage beqIndex |} nbPage = 
+              x (memory s) beqPage beqIndex |} nbPage = 
 getTrdShadows sh3 s nbPage.
 Proof. 
 revert sh3.
@@ -844,14 +881,7 @@ intros. simpl in *.
  set (s' :=    {|
         currentPartition := currentPartition s;
         memory := add table idx
-                    (PE
-                       {|
-                       read := false;
-                       write := false;
-                       exec := false;
-                       present := false;
-                       user := false;
-                       pa := paValue |}) (memory s) beqPage beqIndex |}) in *.
+                    x (memory s) beqPage beqIndex |}) in *.
 destruct (StateLib.getMaxIndex);trivial.
 assert(sh3 <> table).
 { case_eq ( StateLib.readPhyEntry sh3 i (memory s)); intros;
@@ -861,8 +891,7 @@ assert(sh3 <> table).
 destruct H as (H & _); assumption. }
 assert(Hread :   StateLib.readPhyEntry sh3 i
     (add table idx
-       (PE {| read := false; write := false; exec := false; 
-       present := false; user := false; pa := paValue |})
+       x
        (memory s) beqPage beqIndex) = StateLib.readPhyEntry sh3 i (memory s)).
 { unfold StateLib.readPhyEntry.
   cbn.
@@ -885,13 +914,11 @@ apply Classical_Prop.not_or_and in H.
 destruct H as (H & Hneed); assumption.
 Qed.
 
-Lemma getConfigPagesUpdateMappedPageData partition table idx paValue s : 
+Lemma getConfigPagesUpdateMappedPageData partition table idx x s : 
 ~ In table (getConfigPages partition s) -> 
 getConfigPages partition
 {| currentPartition := currentPartition s;
-   memory := Lib.add  table idx
-            (PE
-               {| read := false; write := false; exec := false; present := false; user := false; pa := paValue |})
+   memory := Lib.add  table idx x
             (memory s) beqPage beqIndex |} = getConfigPages partition s.
 Proof.
 intros Ha.
@@ -937,27 +964,25 @@ try repeat rewrite getIndirectionsAuxUpdateMappedPageData; f_equal; trivial.
 do 6 f_equal.
 apply getTrdShadowsUpdateMappedPageData; trivial.
 Qed.
-Lemma getConfigPagesAuxUpdateMappedPageData partition table idx paValue s : 
+Lemma getConfigPagesAuxUpdateMappedPageData partition table idx x s : 
 ~ In table (getConfigPages partition s) -> 
 getConfigPagesAux partition
 {| currentPartition := currentPartition s;
    memory := Lib.add  table idx
-            (PE
-               {| read := false; write := false; exec := false; present := false; user := false; pa := paValue |})
+            x
             (memory s) beqPage beqIndex |} = getConfigPagesAux partition s.
 Proof.
 intros.
 assert(getConfigPages partition {| currentPartition := currentPartition s;
    memory := Lib.add  table idx
-            (PE
-               {| read := false; write := false; exec := false; present := false; user := false; pa := paValue |})
+           x
             (memory s) beqPage beqIndex |} = getConfigPages partition s).
             apply getConfigPagesUpdateMappedPageData; trivial.
 unfold getConfigPages in H0.
 inversion H0. reflexivity.
 Qed.
 
-Lemma isVAUpdateMappedPageData partition table idxroot idx pValue r w e p u s: 
+Lemma isVAUpdateMappedPageData partition table idxroot idx x s: 
 (forall partition : page,
           In partition (getPartitions multiplexer s) ->
           partition = table \/ In table (getConfigPagesAux partition s) ->
@@ -969,7 +994,7 @@ isVA partition idxroot
   {|
   currentPartition := currentPartition s;
   memory := add table idx
-              (PE {| read := r; write := w; exec := e; present := p; user := u; pa := pValue |})
+              x
               (memory s) beqPage beqIndex |}.
 Proof.
 intros Hconfig Hfalse Hpde Hva.
@@ -994,8 +1019,7 @@ assert ( lookup partition idxroot (removeDup table idx (memory s) beqPage beqInd
 rewrite  Hmemory; clear Hmemory. assumption.
 Qed.
 
-Lemma nextEntryIsPPUpdateMappedPageData partition table idxroot root idx pValue
-r w e p u s: 
+Lemma nextEntryIsPPUpdateMappedPageData partition table idxroot root idx x s: 
 (forall partition : page,
           In partition (getPartitions multiplexer s) ->
           partition = table \/ In table (getConfigPagesAux partition s) ->
@@ -1007,7 +1031,7 @@ nextEntryIsPP partition idxroot root
   {|
   currentPartition := currentPartition s;
   memory := add table idx
-              (PE {| read := r; write := w; exec := e; present := p; user := u; pa := pValue |})
+              x
               (memory s) beqPage beqIndex |}.
 Proof.
 intros Hconfig Hfalse Hpde .
@@ -1054,7 +1078,7 @@ split.
   rewrite  Hmemory in *; clear Hmemory. trivial.
 Qed.
 
-Lemma partitionDescriptorEntryUpdateMappedPageData (table : page) idx pValue r w e p u s: 
+Lemma partitionDescriptorEntryUpdateMappedPageData (table : page) idx x s: 
 (forall partition : page,
           In partition (getPartitions multiplexer s) ->
           partition = table \/ In table (getConfigPagesAux partition s) ->
@@ -1065,27 +1089,13 @@ partitionDescriptorEntry
   {|
   currentPartition := currentPartition s;
   memory := add table idx
-              (PE
-                 {|
-                 read := r;
-                 write := w;
-                 exec := e;
-                 present := p;
-                 user := u;
-                 pa := pValue |}) (memory s) beqPage beqIndex |}.
+             x (memory s) beqPage beqIndex |}.
 Proof.
 intros Hconfig Hfalse Hpde.
 set (s' :=  {|
   currentPartition := currentPartition s;
   memory := add table idx
-              (PE
-                 {|
-                 read := r;
-                 write := w;
-                 exec := e;
-                 present := p;
-                 user := u;
-                 pa := pValue |}) (memory s) beqPage beqIndex |}) in *.
+              x (memory s) beqPage beqIndex |}) in *.
 assert(getPartitions multiplexer s' = getPartitions multiplexer s) as Hpartions.
  { unfold s'.
    apply getPartitionsUpdateMappedPageData ; trivial.
@@ -1111,14 +1121,14 @@ unfold s'.
 apply nextEntryIsPPUpdateMappedPageData; trivial.
 Qed.
 
-Lemma isPEUpdateUpdateMappedPageData table1 table2 idx1 idx2 pValue r w e p u s :
+Lemma isPEUpdateUpdateMappedPageData table1 table2 idx1 idx2 x s :
 table2 <> table1 -> 
 isPE table1 idx1 s -> 
 isPE table1 idx1
 {|
 currentPartition := currentPartition s;
 memory := add table2 idx2
-          (PE {| read := r; write := w; exec := e; present := p; user := u; pa := pValue |})
+         x
           (memory s) beqPage beqIndex |}.
 Proof.
 intros.
@@ -1134,14 +1144,14 @@ assert (lookup  table1 idx1 (removeDup table2 idx2 (memory s) beqPage beqIndex)
 rewrite  Hmemory. assumption.
 Qed.
 
-Lemma isVEUpdateMappedPageData table1 table2 idx1 idx2 pValue r w e p u s :
+Lemma isVEUpdateMappedPageData table1 table2 idx1 idx2 x s :
 table2 <> table1 -> 
 isVE table1 idx1 s -> 
 isVE table1 idx1
 {|
 currentPartition := currentPartition s;
 memory := add table2 idx2
-          (PE {| read := r; write := w; exec := e; present := p; user := u; pa := pValue |})
+          x
           (memory s) beqPage beqIndex |}.
 Proof.
 intros.
@@ -1157,14 +1167,14 @@ assert (lookup  table1 idx1 (removeDup table2 idx2 (memory s) beqPage beqIndex)
 rewrite  Hmemory. assumption.
 Qed.
 
-Lemma isVAUpdateMappedPageData' table1 table2 idx1 idx2 pValue r w e p u s :
+Lemma isVAUpdateMappedPageData' table1 table2 idx1 idx2 x s :
 table2 <> table1 -> 
 isVA table1 idx1 s -> 
 isVA table1 idx1
 {|
 currentPartition := currentPartition s;
 memory := add table2 idx2
-          (PE {| read := r; write := w; exec := e; present := p; user := u; pa := pValue |})
+          x
           (memory s) beqPage beqIndex |}.
 Proof.
 intros.
@@ -1180,8 +1190,7 @@ assert (lookup  table1 idx1 (removeDup table2 idx2 (memory s) beqPage beqIndex)
 rewrite  Hmemory. assumption.
 Qed.
 
-Lemma dataStructurePdSh1Sh2asRootUpdateMappedPageData idxroot table idx pValue 
-r w e p u s :
+Lemma dataStructurePdSh1Sh2asRootUpdateMappedPageData idxroot table idx  x s: 
 (idxroot = PDidx \/ idxroot = sh1idx \/ idxroot = sh2idx) -> 
 (forall partition : page,
           In partition (getPartitions multiplexer s) ->
@@ -1194,27 +1203,13 @@ dataStructurePdSh1Sh2asRoot idxroot
   {|
   currentPartition := currentPartition s;
   memory := add table idx
-              (PE
-                 {|
-                 read := r;
-                 write := w;
-                 exec := e;
-                 present := p;
-                 user := u;
-                 pa := pValue  |}) (memory s) beqPage beqIndex |}.
+             x (memory s) beqPage beqIndex |}.
 Proof.
 intros Hor Hconfig Hfalse Hpde Hds.
 set (s' :=  {|
   currentPartition := currentPartition s;
   memory := add table idx
-              (PE
-                 {|
-                 read := r;
-                 write := w;
-                 exec := e;
-                 present := p;
-                 user := u;
-                 pa := pValue |}) (memory s) beqPage beqIndex |}) in *.
+              x (memory s) beqPage beqIndex |}) in *.
 assert(getPartitions multiplexer s' = getPartitions multiplexer s) as Hpartions.
  { unfold s'.
    apply getPartitionsUpdateMappedPageData ; trivial.
@@ -1423,7 +1418,7 @@ assert (~ In table (getIndirectionsAux entrypp s nbLevel)).
 Qed.
 
 Lemma getTableAddrRootUpdateMappedPageData table1 table2 idx2 idxroot partition va 
-r w e p u paValue s:
+x s:
 (forall partition0 : page,
 In partition0 (getPartitions multiplexer s) ->
 partition0 = table2 \/ In table2 (getConfigPagesAux partition0 s) -> False) -> 
@@ -1435,14 +1430,7 @@ getTableAddrRoot table1 idxroot partition va
   {|
   currentPartition := currentPartition s;
   memory := add table2 idx2
-              (PE
-                 {|
-                 read := r;
-                 write := w;
-                 exec := e;
-                 present := p;
-                 user := u;
-                 pa := paValue |}) (memory s) beqPage beqIndex |}.
+             x (memory s) beqPage beqIndex |}.
 Proof.
 intros Hconfig Htbl2notnull Hmult Hpde Htblroot.
 unfold getTableAddrRoot in *.
@@ -1512,21 +1500,14 @@ destruct Htrue as [Hpd | [Hsh1 | Hsh2]].
 Qed.
 
 Lemma entryPresentFlagUpdateMappedPageData table1 table2 idx1 idx2 
-flag r w e p u paValue s: 
+flag x s: 
 table2 <> table1 -> 
 entryPresentFlag table1 idx1 flag s -> 
 entryPresentFlag table1 idx1 flag
   {|
   currentPartition := currentPartition s;
   memory := add table2 idx2
-              (PE
-                 {|
-                 read := r;
-                 write := w;
-                 exec := e;
-                 present := p;
-                 user := u;
-                 pa := paValue |}) (memory s) beqPage beqIndex |}.
+              x (memory s) beqPage beqIndex |}.
 Proof.
 intros.
 unfold entryPresentFlag in *.
@@ -1543,21 +1524,14 @@ rewrite  Hmemory. assumption.
 Qed.
 
 Lemma entryUserFlagUpdateMappedPageData table1 table2 idx1 idx2 
-flag r w e p u paValue s: 
+flag x s: 
 table2 <> table1 -> 
 entryUserFlag table1 idx1 flag s -> 
 entryUserFlag table1 idx1 flag
   {|
   currentPartition := currentPartition s;
   memory := add table2 idx2
-              (PE
-                 {|
-                 read := r;
-                 write := w;
-                 exec := e;
-                 present := p;
-                 user := u;
-                 pa := paValue |}) (memory s) beqPage beqIndex |}.
+              x (memory s) beqPage beqIndex |}.
 Proof.
 intros.
 unfold entryUserFlag in *.
@@ -1573,22 +1547,14 @@ assert (lookup  table1 idx1 (removeDup table2 idx2 (memory s) beqPage beqIndex)
 rewrite  Hmemory. assumption.
 Qed.
 
-Lemma isEntryVAUpdateMappedPageData table1 table2 idx1 idx2 va paValue 
-r w e p u s :
+Lemma isEntryVAUpdateMappedPageData table1 table2 idx1 idx2 va x s :
 table2 <> table1 -> 
 isEntryVA table1 idx1 va s ->
 isEntryVA table1 idx1 va
   {|
   currentPartition := currentPartition s;
   memory := add table2 idx2
-              (PE
-                 {|
-                 read := r;
-                 write := w;
-                 exec := e;
-                 present := p;
-                 user := u;
-                 pa := paValue |}) (memory s) beqPage beqIndex |}.
+              x (memory s) beqPage beqIndex |}.
 Proof.
 intros Hentryva.
 unfold isEntryVA in *.
@@ -1603,22 +1569,13 @@ assert (lookup  table1 idx1 (removeDup table2 idx2 (memory s) beqPage beqIndex)
 rewrite  Hmemory. trivial.
 Qed.
 
-Lemma isEntryPageUpdateMappedPageData table1 table2 idx1 idx2 paValue phytable1
-r w e p u s :
+Lemma isEntryPageUpdateMappedPageData table1 table2 idx1 idx2 phytable1 x s :
 table2 <> table1 -> 
 isEntryPage table1 idx1 phytable1 s ->
 isEntryPage table1 idx1 phytable1
   {|
   currentPartition := currentPartition s;
-  memory := add table2 idx2
-              (PE
-                 {|
-                 read := r;
-                 write := w;
-                 exec := e;
-                 present := p;
-                 user := u;
-                 pa := paValue |}) (memory s) beqPage beqIndex |}.
+  memory := add table2 idx2 x (memory s) beqPage beqIndex |}.
 Proof.
 intros Hentryva.
 unfold isEntryPage in *.
@@ -1633,20 +1590,12 @@ assert (lookup  table1 idx1 (removeDup table2 idx2 (memory s) beqPage beqIndex)
 rewrite  Hmemory. trivial.
 Qed.
 
-Lemma readPhyEntryUpdateMappedPageData table1 table2 idx1 idx2 paValue 
-r w e p u s :
+Lemma readPhyEntryUpdateMappedPageData table1 table2 idx1 idx2 x s :
 table2 <> table1 -> 
 StateLib.readPhyEntry table1 idx1 (memory s) =
 StateLib.readPhyEntry table1 idx1 
  ( add table2 idx2
-              (PE
-                 {|
-                 read := r;
-                 write := w;
-                 exec := e;
-                 present := p;
-                 user := u;
-                 pa := paValue |}) (memory s) beqPage beqIndex ).
+              x (memory s) beqPage beqIndex ).
 Proof.
 intros Hnoteq.
 unfold StateLib.readPhyEntry in *.
@@ -1660,6 +1609,7 @@ assert (lookup  table1 idx1 (removeDup table2 idx2 (memory s) beqPage beqIndex)
 { apply removeDupIdentity. subst.  intuition. }
 rewrite  Hmemory. trivial.
 Qed.
+
 
 Lemma readMappedPageDataUpdateMappedPageData partition pt1 pt2 phy1 phy2 
 idxVa1 idxVa2 va1 va2  level s  : 
@@ -1833,7 +1783,7 @@ Qed.
 
 
     
-Lemma propagatedPropertiesUpdateMappedPageData curidx nullP table pdChild currentPart 
+Lemma propagatedPropertiesUpdateMappedPageData curidx x table pdChild currentPart 
 currentPD level ptRefChild descChild idxRefChild presentRefChild ptPDChild
 idxPDChild presentPDChild ptSh1Child shadow1 idxSh1 presentSh1 ptSh2Child shadow2 
 idxSh2 presentSh2 ptConfigPagesList idxConfigPagesList presentConfigPagesList 
@@ -1861,26 +1811,12 @@ phyDescChild s  ->
   phyDescChild   {|
                     currentPartition := currentPartition s;
                     memory := add table curidx
-                              (PE
-                                 {|
-                                 read := false;
-                                 write := false;
-                                 exec := false;
-                                 present := false;
-                                 user := false;
-                                 pa := nullP |}) (memory s) beqPage beqIndex |}.
+                              x (memory s) beqPage beqIndex |}.
 Proof.
 set (s' := {|
   currentPartition := currentPartition s;
   memory := add table curidx
-              (PE
-                 {|
-                 read := false;
-                 write := false;
-                 exec := false;
-                 present := false;
-                 user := false;
-                 pa := nullP |}) (memory s) beqPage beqIndex |}).
+              x (memory s) beqPage beqIndex |}).
    unfold propagatedProperties in *.
    split.
 (** partitionsIsolation **)
@@ -2702,4 +2638,527 @@ set (s' := {|
       trivial. }
 Qed.
 
-       
+Lemma updatePartitionRefPropagatedProperties table1 idxVa1 pt1 va1 idxPR zero presentConfigPagesList 
+          presentPDChild presentRefChild presentSh1 presentSh2 pdChild currentPart 
+          currentPD level ptRefChild descChild idxRefChild ptPDChild
+          idxPDChild ptSh1Child shadow1 idxSh1  ptSh2Child shadow2 idxSh2 ptConfigPagesList
+          idxConfigPagesList  currentShadow1 ptRefChildFromSh1 derivedRefChild ptPDChildSh1 derivedPDChild
+          ptSh1ChildFromSh1 derivedSh1Child childSh2 derivedSh2Child childListSh1 derivedRefChildListSh1 list phyPDChild
+          phySh1Child phySh2Child phyConfigPagesList phyDescChild: 
+presentRefChild = true  /\ presentPDChild = true  /\
+              presentConfigPagesList = true /\ presentSh1 = true /\ presentSh2 = true -> 
+{{ fun s : state =>
+  (((((propagatedProperties pdChild currentPart currentPD level ptRefChild descChild idxRefChild presentRefChild ptPDChild
+          idxPDChild presentPDChild ptSh1Child shadow1 idxSh1 presentSh1 ptSh2Child shadow2 idxSh2 presentSh2 ptConfigPagesList
+          idxConfigPagesList presentConfigPagesList currentShadow1 ptRefChildFromSh1 derivedRefChild ptPDChildSh1 derivedPDChild
+          ptSh1ChildFromSh1 derivedSh1Child childSh2 derivedSh2Child childListSh1 derivedRefChildListSh1 list phyPDChild
+          phySh1Child phySh2Child phyConfigPagesList phyDescChild s /\ zero = CIndex 0) /\
+       (forall idx : index, StateLib.readPhyEntry phySh2Child idx (memory s) = Some defaultPage)) /\
+      (forall idx : index, StateLib.readPhyEntry phySh1Child idx (memory s) = Some defaultPage)) /\
+     (forall idx : index, StateLib.readPhyEntry phyPDChild idx (memory s) = Some defaultPage)) /\
+    StateLib.readPhysical phyConfigPagesList (CIndex (tableSize - 1)) (memory s) = Some defaultPage /\
+    (forall idx : index,
+     idx <> CIndex (tableSize - 1) ->
+     Nat.Odd idx -> StateLib.readVirtual phyConfigPagesList idx (memory s) = Some defaultVAddr) /\
+    (forall idx : index,
+     Nat.Even idx -> exists idxValue : index, StateLib.readIndex phyConfigPagesList idx (memory s) = Some idxValue)) /\
+   idxPR = PRidx /\
+    
+   (forall partition : page,
+In partition (getPartitions multiplexer s) ->
+partition = table1 \/ In table1 (getConfigPagesAux partition s) ->
+False) /\ (defaultPage =? table1) = false /\
+    isEntryPage pt1 idxVa1 table1 s /\
+     StateLib.getIndexOfAddr va1 fstLevel = idxVa1 /\
+     (forall idx : index,
+        StateLib.getIndexOfAddr va1 fstLevel = idx ->
+        isPE pt1 idx s /\ getTableAddrRoot pt1 PDidx (currentPartition s) va1 s) /\
+      entryPresentFlag pt1 idxVa1 true s  /\
+false = checkVAddrsEqualityWOOffset nbLevel va1 pdChild level /\
+
+ false = checkVAddrsEqualityWOOffset nbLevel va1 shadow1 level /\
+
+ false = checkVAddrsEqualityWOOffset nbLevel va1 shadow2 level /\
+
+false = checkVAddrsEqualityWOOffset nbLevel va1 list level 
+
+
+
+
+   }} Internal.updatePartitionRef table1 idxPR phyDescChild descChild 
+{{ fun _ s  =>
+   (((((propagatedProperties pdChild currentPart currentPD level ptRefChild descChild idxRefChild true ptPDChild
+          idxPDChild true ptSh1Child shadow1 idxSh1 true ptSh2Child shadow2 idxSh2 true ptConfigPagesList
+          idxConfigPagesList true currentShadow1 ptRefChildFromSh1 derivedRefChild ptPDChildSh1 derivedPDChild
+          ptSh1ChildFromSh1 derivedSh1Child childSh2 derivedSh2Child childListSh1 derivedRefChildListSh1 list phyPDChild
+          phySh1Child phySh2Child phyConfigPagesList phyDescChild s /\ zero = CIndex 0) /\
+       (forall idx : index, StateLib.readPhyEntry phySh2Child idx (memory s) = Some defaultPage)) /\
+      (forall idx : index, StateLib.readPhyEntry phySh1Child idx (memory s) = Some defaultPage)) /\
+     (forall idx : index, StateLib.readPhyEntry phyPDChild idx (memory s) = Some defaultPage)) /\
+    StateLib.readPhysical phyConfigPagesList (CIndex (tableSize - 1)) (memory s) = Some defaultPage /\
+    (forall idx : index,
+     idx <> CIndex (tableSize - 1) ->
+     Nat.Odd idx -> StateLib.readVirtual phyConfigPagesList idx (memory s) = Some defaultVAddr) /\
+    (forall idx : index,
+     Nat.Even idx -> exists idxValue : index, StateLib.readIndex phyConfigPagesList idx (memory s) = Some idxValue)) /\
+   idxPR = PRidx  }}.
+Proof.
+(*intros Hlegit.
+unfold updatePartitionRef.
+eapply bindRev.
+(** writeVirtual **)
+   eapply weaken.
+   eapply WP.writeVirtual.
+   simpl;intros.
+   try repeat rewrite and_assoc in H.
+    subst.
+   pattern s in H.
+    match type of H with 
+    | ?HT s => instantiate (1 := fun tt s => HT s )
+    end.
+   simpl in *.
+   split.
+   intuition.
+    apply propagatedPropertiesUpdateMappedPageData; trivial.
+         assert(getPartitions multiplexer {|
+      currentPartition := currentPartition s;
+      memory := add table1 idxPR (VA descChild) (memory s) beqPage beqIndex |} = 
+      getPartitions multiplexer s) as Hpartions.
+    {
+      apply getPartitionsUpdateMappedPageData ; trivial.
+      + unfold getPartitions.
+        destruct nbPage;simpl;left;trivial.
+      + intuition.
+      + assert(Hfalse : (defaultPage =? table1) = false) by intuition.
+        apply beq_nat_false in Hfalse.
+        unfold not; intros.
+        apply Hfalse.
+        subst;trivial. }
+    rewrite Hpartions in *; trivial.
+(*     unfold propagatedProperties in *. 
+    intuition.
+    unfold propagatedProperties in *.
+    intuition. *)
+    assert (Htable : forall idx : index, StateLib.readPhyEntry phySh2Child idx (memory s) = Some defaultPage)
+    by intuition.
+    { generalize (Htable idx); clear Htable; intros Htable.
+    rewrite <- Htable.
+    symmetry.
+    apply readPhyEntryUpdateMappedPageData; trivial.
+    unfold propagatedProperties in *.
+    unfold consistency in *.
+    unfold not.
+    intros Hfalse.
+    intuition.
+    symmetry in Hfalse.
+    contradict Hfalse.
+    subst.
+
+         apply readMappedPageDataUpdateMappedPageData 
+    with  (currentPartition s)  ptSh2Child pt1 
+    (StateLib.getIndexOfAddr shadow2 fstLevel)  
+    (StateLib.getIndexOfAddr va1 fstLevel)
+       shadow2 va1 level s; trivial.
+    rewrite checkVAddrsEqualityWOOffsetPermut.
+    assumption. } 
+    assert (Htable : forall idx : index, StateLib.readPhyEntry phySh1Child idx (memory s) = Some defaultPage)
+    by intuition.
+    { generalize (Htable idx); clear Htable; intros Htable.
+      rewrite <- Htable.
+      symmetry.
+     apply readPhyEntryUpdateMappedPageData; trivial.
+    unfold propagatedProperties in *.
+    unfold consistency in *.
+    unfold not.
+    intros Hfalse.
+    intuition.
+    symmetry in Hfalse.
+    contradict Hfalse.
+    subst.
+      apply readMappedPageDataUpdateMappedPageData 
+      with  (currentPartition s)  ptSh1Child pt1 
+      (StateLib.getIndexOfAddr shadow1 fstLevel)  
+      (StateLib.getIndexOfAddr va1 fstLevel)
+         shadow1 va1 level s; trivial.
+      unfold consistency in *.
+      unfold currentPartitionInPartitionsList in *.
+      subst.
+      intuition.
+      rewrite checkVAddrsEqualityWOOffsetPermut.
+      assumption. }
+    assert (Htable : forall idx : index, StateLib.readPhyEntry phyPDChild idx (memory s) = Some defaultPage)
+    by intuition.
+    { generalize (Htable idx); clear Htable; intros Htable.
+      rewrite <- Htable.
+      symmetry.
+      apply readPhyEntryUpdateMappedPageData; trivial.
+      unfold propagatedProperties in *.
+      unfold consistency in *.
+      unfold not.
+      intros Hfalse.
+      intuition.
+      symmetry in Hfalse.
+      contradict Hfalse.
+      subst.
+      apply readMappedPageDataUpdateMappedPageData 
+      with  (currentPartition s)  ptPDChild pt1 
+      (StateLib.getIndexOfAddr pdChild fstLevel)  
+      (StateLib.getIndexOfAddr va1 fstLevel)
+         pdChild va1 level s; trivial.
+      intuition.
+      rewrite checkVAddrsEqualityWOOffsetPermut.
+      assumption. }
+      
+   assert (Htable : StateLib.readPhysical phyConfigPagesList (CIndex (tableSize - 1)) (memory s) = Some defaultPage)
+    by intuition.
+    { rewrite <- Htable.
+      apply readPhysicalUpdateMappedPageData; trivial.
+      unfold propagatedProperties in *.
+      unfold consistency in *.
+      unfold not.
+      intros Hfalse.
+      intuition.
+      symmetry in Hfalse.
+      contradict Hfalse.
+      subst.
+      apply readMappedPageDataUpdateMappedPageData 
+      with  (currentPartition s)  ptConfigPagesList pt1 
+      (StateLib.getIndexOfAddr list fstLevel)  
+      (StateLib.getIndexOfAddr va1 fstLevel)
+         list va1 level s; trivial.
+      unfold consistency in *.
+      unfold currentPartitionInPartitionsList in *.
+      subst.
+      intuition.
+      rewrite checkVAddrsEqualityWOOffsetPermut.
+      assumption. }
+       assert (Htable : StateLib.readVirtual phyConfigPagesList idx (memory s) = Some defaultVAddr)
+    by intuition.
+    { rewrite <- Htable.
+      apply readVirtualUpdateMappedPageData; trivial.
+      unfold propagatedProperties in *.
+      unfold consistency in *.
+      unfold not.
+      intros Hfalse.
+      intuition.
+      symmetry in Hfalse.
+      contradict Hfalse.
+      subst.
+      apply readMappedPageDataUpdateMappedPageData 
+      with  (currentPartition s)  ptConfigPagesList pt1 
+      (StateLib.getIndexOfAddr list fstLevel)  
+      (StateLib.getIndexOfAddr va1 fstLevel)
+         list va1 level s; trivial.
+      unfold consistency in *.
+      unfold currentPartitionInPartitionsList in *.
+      subst.
+      intuition.
+      rewrite checkVAddrsEqualityWOOffsetPermut.
+      assumption. }
+     assert (Htable : exists idxValue : index, 
+     StateLib.readIndex phyConfigPagesList idx (memory s) = Some idxValue)
+    by intuition.
+    destruct Htable as (idxValue & Htable).
+    exists idxValue.
+    { rewrite <- Htable.
+      apply readIndexUpdateMappedPageData; trivial.
+      unfold propagatedProperties in *.
+      unfold consistency in *.
+      unfold not.
+      intros Hfalse.
+      intuition.
+      symmetry in Hfalse.
+      contradict Hfalse.
+      subst.
+      apply readMappedPageDataUpdateMappedPageData 
+      with  (currentPartition s)  ptConfigPagesList pt1 
+      (StateLib.getIndexOfAddr list fstLevel)  
+      (StateLib.getIndexOfAddr va1 fstLevel)
+         list va1 level s; trivial.
+      unfold consistency in *.
+      unfold currentPartitionInPartitionsList in *.
+      subst.
+      intuition.
+      rewrite checkVAddrsEqualityWOOffsetPermut.
+      assumption. } 
+    intros [].
+ (** MALInternal.Index.succ **) 
+   eapply bindRev.
+   eapply WP.weaken. 
+   eapply Invariants.Index.succ.
+   intros.
+   simpl.
+   split.
+   try repeat rewrite and_assoc in H.  
+   pattern s in H.
+   eassumption.
+   repeat rewrite and_assoc in H.
+   assert (idxPR = PRidx) by intuition.
+   subst.
+   unfold propagatedProperties in *.
+   unfold consistency in *.
+   assert (Hpde : partitionDescriptorEntry s) by intuition.
+   
+   unfold partitionDescriptorEntry in *.
+   intuition.
+   subst.
+   assert (Hcur : In (currentPartition s) (getPartitions multiplexer s)).
+   unfold currentPartitionInPartitionsList in *. 
+   intuition.
+   apply Hpde with (currentPartition s) PRidx   in Hcur.
+   intuition.
+   try repeat right; trivial.
+   intros PRidxsucc.
+(** writePhysical**)
+   eapply weaken.
+   eapply WP.writePhysical.
+   simpl;intros.
+   try repeat rewrite and_assoc in H.
+    subst.
+   pattern s in H.
+   simpl in *.
+   intuition.
+   subst.
+    apply propagatedPropertiesUpdateMappedPageData; trivial.
+    unfold propagatedProperties in *. 
+    intuition.
+    unfold propagatedProperties in *.
+    intuition.
+    assert (Htable : forall idx : index, StateLib.readPhyEntry phySh2Child idx (memory s) = Some defaultPage)
+    by intuition.
+    { generalize (Htable idx); clear Htable; intros Htable.
+    rewrite <- Htable.
+    symmetry.
+    apply readPhyEntryUpdateMappedPageData; trivial.
+    unfold propagatedProperties in *.
+    unfold consistency in *.
+    unfold not.
+    intros Hfalse.
+    intuition.
+    symmetry in Hfalse.
+    contradict Hfalse.
+    subst.
+    
+    apply readMappedPageDataUpdateMappedPageData 
+    with  (currentPartition s)  ptSh2Child pt1 
+    (StateLib.getIndexOfAddr shadow2 fstLevel)  
+    (StateLib.getIndexOfAddr va1 fstLevel)
+       shadow2 va1 level s; trivial.
+    unfold consistency in *.
+    unfold currentPartitionInPartitionsList in *.
+    subst.
+    intuition.
+    rewrite checkVAddrsEqualityWOOffsetPermut.
+    assumption. } 
+    assert (Htable : forall idx : index, StateLib.readPhyEntry phySh1Child idx (memory s) = Some defaultPage)
+    by intuition.
+    { generalize (Htable idx); clear Htable; intros Htable.
+      rewrite <- Htable.
+      symmetry.
+      apply readPhyEntryUpdateMappedPageData; trivial.
+      unfold propagatedProperties in *.
+      unfold consistency in *.
+      unfold not.
+      intros Hfalse.
+      intuition.
+      symmetry in Hfalse.
+      contradict Hfalse.
+      subst.
+      apply readMappedPageDataUpdateMappedPageData 
+      with  (currentPartition s)  ptSh1Child pt1 
+      (StateLib.getIndexOfAddr shadow1 fstLevel)  
+      (StateLib.getIndexOfAddr va1 fstLevel)
+         shadow1 va1 level s; trivial.
+      unfold consistency in *.
+      unfold currentPartitionInPartitionsList in *.
+      subst.
+      intuition.
+      rewrite checkVAddrsEqualityWOOffsetPermut.
+      assumption. }
+    assert (Htable : forall idx : index, StateLib.readPhyEntry phyPDChild idx (memory s) = Some defaultPage)
+    by intuition.
+    { generalize (Htable idx); clear Htable; intros Htable.
+      rewrite <- Htable.
+      symmetry.
+      apply readPhyEntryUpdateMappedPageData; trivial.
+      unfold propagatedProperties in *.
+      unfold consistency in *.
+      unfold not.
+      intros Hfalse.
+      intuition.
+      symmetry in Hfalse.
+      contradict Hfalse.
+      subst.
+      apply readMappedPageDataUpdateMappedPageData 
+      with  (currentPartition s)  ptPDChild pt1 
+      (StateLib.getIndexOfAddr pdChild fstLevel)  
+      (StateLib.getIndexOfAddr va1 fstLevel)
+         pdChild va1 level s; trivial.
+      unfold consistency in *.
+      unfold currentPartitionInPartitionsList in *.
+      subst.
+      intuition.
+      rewrite checkVAddrsEqualityWOOffsetPermut.
+      assumption. }
+      
+   assert (Htable : StateLib.readPhysical phyConfigPagesList (CIndex (tableSize - 1)) (memory s) = Some defaultPage)
+    by intuition.
+    { rewrite <- Htable.
+      apply readPhysicalUpdateMappedPageData; trivial.
+      unfold propagatedProperties in *.
+      unfold consistency in *.
+      unfold not.
+      intros Hfalse.
+      intuition.
+      symmetry in Hfalse.
+      contradict Hfalse.
+      subst.
+      apply readMappedPageDataUpdateMappedPageData 
+      with  (currentPartition s)  ptConfigPagesList pt1 
+      (StateLib.getIndexOfAddr list fstLevel)  
+      (StateLib.getIndexOfAddr va1 fstLevel)
+         list va1 level s; trivial.
+      unfold consistency in *.
+      unfold currentPartitionInPartitionsList in *.
+      subst.
+      intuition.
+      rewrite checkVAddrsEqualityWOOffsetPermut.
+      assumption. }
+       assert (Htable : StateLib.readVirtual phyConfigPagesList idx (memory s) = Some defaultVAddr)
+    by intuition.
+    { rewrite <- Htable.
+      apply readVirtualUpdateMappedPageData; trivial.
+      unfold propagatedProperties in *.
+      unfold consistency in *.
+      unfold not.
+      intros Hfalse.
+      intuition.
+      symmetry in Hfalse.
+      contradict Hfalse.
+      subst.
+      apply readMappedPageDataUpdateMappedPageData 
+      with  (currentPartition s)  ptConfigPagesList pt1 
+      (StateLib.getIndexOfAddr list fstLevel)  
+      (StateLib.getIndexOfAddr va1 fstLevel)
+         list va1 level s; trivial.
+      unfold consistency in *.
+      unfold currentPartitionInPartitionsList in *.
+      subst.
+      intuition.
+      rewrite checkVAddrsEqualityWOOffsetPermut.
+      assumption. }
+     assert (Htable : exists idxValue : index, 
+     StateLib.readIndex phyConfigPagesList idx (memory s) = Some idxValue)
+    by intuition.
+    destruct Htable as (idxValue & Htable).
+    exists idxValue.
+    { rewrite <- Htable.
+      apply readIndexUpdateMappedPageData; trivial.
+      unfold propagatedProperties in *.
+      unfold consistency in *.
+      unfold not.
+      intros Hfalse.
+      intuition.
+      symmetry in Hfalse.
+      contradict Hfalse.
+      subst.
+      apply readMappedPageDataUpdateMappedPageData 
+      with  (currentPartition s)  ptConfigPagesList pt1 
+      (StateLib.getIndexOfAddr list fstLevel)  
+      (StateLib.getIndexOfAddr va1 fstLevel)
+         list va1 level s; trivial.
+      unfold consistency in *.
+      unfold currentPartitionInPartitionsList in *.
+      subst.
+      intuition.
+      rewrite checkVAddrsEqualityWOOffsetPermut.
+      assumption. }
+Qed. *)
+Admitted.
+
+
+Lemma updatePartitionRefNewProperty (phyDescChild : page) (descChild : vaddr) (idxPR : index) :
+ {{ fun s : state =>  idxPR < tableSize - 1}} 
+     Internal.updatePartitionRef phyDescChild idxPR phyDescChild descChild 
+{{ fun _ s => isVA phyDescChild idxPR  s /\ nextEntryIsPP phyDescChild idxPR phyDescChild s}}.
+Proof.
+unfold updatePartitionRef.
+eapply bindRev.
+(** writeVirtual **) 
+    eapply weaken.
+    eapply WP.writeVirtual.
+    simpl.
+    intros.
+        pattern s in H.
+    match type of H with 
+    | ?HT s => instantiate (1 := fun tt s => HT s /\ 
+                 StateLib.readVirtual phyDescChild idxPR s.(memory) = Some descChild )
+    end.
+   simpl in *.
+   split; trivial.
+      unfold StateLib.readVirtual.
+   cbn.
+   assert (Htrue :Lib.beqPairs (phyDescChild, idxPR) (phyDescChild, idxPR) beqPage beqIndex
+   = true).
+   apply beqPairsTrue;split;trivial.
+   rewrite Htrue; trivial.
+intros [].
+ (** MALInternal.Index.succ **) 
+   eapply bindRev.
+   eapply WP.weaken. 
+   eapply Invariants.Index.succ.
+   intros.
+   simpl.
+   split.
+   try repeat rewrite and_assoc in H.  
+   pattern s in H.
+   eassumption.
+   intuition.
+   intros idxsucc.
+(** writeVirtual **) 
+   eapply weaken.
+   eapply WP.writePhysical.
+   simpl.
+   intros.
+   split.
+(** isVA postcondition **)
+unfold isVA.
+cbn.
+assert(Hidxsucc : idxsucc <> idxPR).
+destruct H.
+unfold not; intros.
+symmetry in H1.
+contradict H1.
+apply indexSuccEqFalse; trivial.
+
+assert(Hfalse : beqPairs (phyDescChild, idxsucc) (phyDescChild, idxPR) beqPage beqIndex
+= false).
+apply beqPairsFalse.
+right; trivial.
+rewrite Hfalse.
+destruct H as ((Hixd & Hreadv )& Hsucc).
+unfold StateLib.readVirtual in *.
+
+assert(Hmemory : lookup phyDescChild idxPR (removeDup phyDescChild idxsucc (memory s) beqPage beqIndex) beqPage
+    beqIndex = lookup phyDescChild idxPR (memory s) beqPage beqIndex).
+{ apply removeDupIdentity; trivial.
+  right.
+  unfold not; intros.
+  subst.
+  now contradict Hidxsucc.  }
+  rewrite Hmemory.
+  destruct (lookup phyDescChild idxPR (memory s) beqPage beqIndex ); 
+  try now contradict Hreadv.
+  destruct v; try now contradict Hreadv.
+  trivial.
+(** nextEntryIsPP postcondition **)
+unfold nextEntryIsPP.
+destruct H.
+rewrite H0.
+cbn.
+ assert (Htrue :Lib.beqPairs(phyDescChild, idxsucc) (phyDescChild, idxsucc) beqPage beqIndex
+   = true).
+   apply beqPairsTrue;split;trivial.
+   rewrite Htrue; trivial.
+Qed.
+

@@ -138,6 +138,12 @@ Proof.
 apply wpIsPrecondition.
 Qed.
 
+Lemma getPRidx   (P: index -> state -> Prop) :
+{{ wp P getPRidx }} getPRidx {{ P }}.
+Proof.
+apply wpIsPrecondition.
+Qed.
+
 Lemma getKidx  (P : index -> state -> Prop) : 
 {{ wp P getKidx}} getKidx {{P}}.
 Proof.
@@ -335,7 +341,7 @@ Qed.
 
 Lemma readVirtual  table idx  (P : vaddr -> state -> Prop) :
 {{fun  s => exists entry : vaddr, lookup table idx s.(memory) beqPage beqIndex = Some ( VA entry) /\ 
-             P entry s }} readVirtual table idx {{P}}.
+             P entry s }} MAL.readVirtual table idx {{P}}.
 Proof.
 unfold readVirtual.
 eapply bind .
@@ -367,6 +373,46 @@ Lemma writePhyEntry  table idx (addr : page) (p u r w e : bool)  (P : unit -> st
               (memory s) beqPage beqIndex |} }} writePhyEntry table idx addr p u r w e  {{P}}.
 Proof.
 unfold writePhyEntry.
+eapply weaken.
+eapply modify .
+intros. simpl.
+assumption.  
+Qed.
+
+Lemma writeVirtual  table idx (addr : vaddr)  (P : unit -> state -> Prop) :
+{{fun  s => P tt {|
+  currentPartition := currentPartition s;
+  memory := add table idx (VA addr) (memory s) beqPage beqIndex |} }} writeVirtual table idx addr  {{P}}.
+Proof.
+unfold writeVirtual.
+eapply weaken.
+eapply modify .
+intros. simpl.
+assumption.  
+Qed.
+
+Lemma writePhysical table idx (addr : page) (P : unit -> state -> Prop) :
+{{fun  s => P tt {|
+  currentPartition := currentPartition s;
+  memory := add table idx
+              (PP addr )
+              (memory s) beqPage beqIndex |} }} writePhysical table idx addr  {{P}}.
+Proof.
+unfold writePhysical.
+eapply weaken.
+eapply modify .
+intros. simpl.
+assumption.  
+Qed.
+
+Lemma writeIndex table idx (indexValue : index) (P : unit -> state -> Prop) :
+{{fun  s => P tt {|
+  currentPartition := currentPartition s;
+  memory := add table idx
+              (I indexValue )
+              (memory s) beqPage beqIndex |} }} writeIndex table idx indexValue  {{P}}.
+Proof.
+unfold writeIndex.
 eapply weaken.
 eapply modify .
 intros. simpl.

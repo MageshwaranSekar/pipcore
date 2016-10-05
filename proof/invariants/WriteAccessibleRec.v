@@ -33,12 +33,13 @@
 
 (** * Summary 
     This file contains the invariant of [writeAccessibleRec] *)
-Require Import Core.Internal Isolation Consistency WeakestPreconditions 
-Invariants StateLib Model.Hardware Model.ADT DependentTypeLemmas
-GetTableAddr Model.MAL Model.Lib Lib InternalLemmas WriteAccessible.
+Require Import Core.Internal Isolation Consistency WeakestPreconditions StateLib
+Model.Hardware Model.ADT Invariants  DependentTypeLemmas
+GetTableAddr Model.MAL Model.Lib Lib InternalLemmas WriteAccessible
+CreatePartitionPropagatedProperties.
 Require Import Coq.Logic.ProofIrrelevance Omega List.
 Import List.ListNotations.
-
+(*
 Lemma WriteAccessibleRec0 nbPage (va : vaddr) (descParent : page)  currentPD tabledesc: 
 {{ fun s : state => partitionsIsolation s /\ kernelDataIsolation s /\ 
 verticalSharing s /\ consistency s /\ 
@@ -662,121 +663,7 @@ case_eq isMultiplexer.
     intros.
     simpl. intuition.
     Qed.
-    
-Definition propagatedProperties  pdChild currentPart currentPD level ptRefChild descChild idxRefChild presentRefChild
- ptPDChild idxPDChild presentPDChild  ptSh1Child shadow1 idxSh1
-presentSh1  ptSh2Child shadow2 idxSh2 presentSh2  ptConfigPagesList 
-idxConfigPagesList presentConfigPagesList 
-currentShadow1 ptRefChildFromSh1 derivedRefChild ptPDChildSh1 derivedPDChild 
-ptSh1ChildFromSh1 derivedSh1Child childSh2
-derivedSh2Child childListSh1 derivedRefChildListSh1 list phyPDChild phySh1Child
-phySh2Child phyConfigPagesList phyDescChild s : Prop :=
-partitionsIsolation s /\
-kernelDataIsolation s /\
-verticalSharing s /\
-consistency s /\
-Some level = StateLib.getNbLevel /\
-false = checkVAddrsEqualityWOOffset nbLevel descChild pdChild level /\
-false = checkVAddrsEqualityWOOffset nbLevel descChild shadow1 level /\
-false = checkVAddrsEqualityWOOffset nbLevel descChild shadow2 level /\
-false = checkVAddrsEqualityWOOffset nbLevel descChild list level /\
-false = checkVAddrsEqualityWOOffset nbLevel pdChild shadow1 level /\
-false = checkVAddrsEqualityWOOffset nbLevel pdChild shadow2 level /\
-false = checkVAddrsEqualityWOOffset nbLevel pdChild list level /\
-false = checkVAddrsEqualityWOOffset nbLevel shadow1 shadow2 level /\
-false = checkVAddrsEqualityWOOffset nbLevel shadow1 list level /\
-false = checkVAddrsEqualityWOOffset nbLevel shadow2 list level /\
-(Kidx =? nth (length descChild - (nbLevel - 1 + 2)) descChild defaultIndex) = false /\
-(Kidx =? nth (length pdChild - (nbLevel - 1 + 2)) pdChild defaultIndex) = false /\
-(Kidx =? nth (length shadow1 - (nbLevel - 1 + 2)) shadow1 defaultIndex) = false /\
-(Kidx =? nth (length shadow2 - (nbLevel - 1 + 2)) shadow2 defaultIndex) = false /\
-(Kidx =? nth (length list - (nbLevel - 1 + 2)) list defaultIndex) = false /\
-currentPart = currentPartition s /\
-nextEntryIsPP currentPart PDidx currentPD s /\
-(forall idx : index,
-StateLib.getIndexOfAddr descChild fstLevel = idx ->
-isPE ptRefChild idx s /\ getTableAddrRoot ptRefChild PDidx currentPart descChild s) /\
-(defaultPage =? ptRefChild) = false /\
-StateLib.getIndexOfAddr descChild fstLevel = idxRefChild /\
-entryPresentFlag ptRefChild idxRefChild presentRefChild s /\
-(forall idx : index,
-StateLib.getIndexOfAddr pdChild fstLevel = idx ->
-isPE ptPDChild idx s /\ getTableAddrRoot ptPDChild PDidx currentPart pdChild s) /\
-(defaultPage =? ptPDChild) = false /\
-StateLib.getIndexOfAddr pdChild fstLevel = idxPDChild /\
-entryPresentFlag ptPDChild idxPDChild presentPDChild s /\
-(forall idx : index,
-StateLib.getIndexOfAddr shadow1 fstLevel = idx ->
-isPE ptSh1Child idx s /\ getTableAddrRoot ptSh1Child PDidx currentPart shadow1 s) /\
-(defaultPage =? ptSh1Child) = false /\
-StateLib.getIndexOfAddr shadow1 fstLevel = idxSh1 /\
-entryPresentFlag ptSh1Child idxSh1 presentSh1 s /\
-(forall idx : index,
-StateLib.getIndexOfAddr shadow2 fstLevel = idx ->
-isPE ptSh2Child idx s /\ getTableAddrRoot ptSh2Child PDidx currentPart shadow2 s) /\
-(defaultPage =? ptSh2Child) = false /\
-StateLib.getIndexOfAddr shadow2 fstLevel = idxSh2 /\ entryPresentFlag ptSh2Child idxSh2 presentSh2 s /\
-(forall idx : index,
-StateLib.getIndexOfAddr list fstLevel = idx ->
-isPE ptConfigPagesList idx s /\ getTableAddrRoot ptConfigPagesList PDidx currentPart list s) /\
-(defaultPage =? ptConfigPagesList) = false /\
-StateLib.getIndexOfAddr list fstLevel = idxConfigPagesList /\
-entryPresentFlag ptConfigPagesList idxConfigPagesList presentConfigPagesList s /\
-nextEntryIsPP currentPart sh1idx currentShadow1 s /\
-(forall idx : index,
-StateLib.getIndexOfAddr descChild fstLevel = idx ->
-isVE ptRefChildFromSh1 idx s /\ getTableAddrRoot ptRefChildFromSh1 sh1idx currentPart descChild s) /\
-(defaultPage =? ptRefChildFromSh1) = false /\
-(exists va : vaddr, isEntryVA ptRefChildFromSh1 idxRefChild va s /\ beqVAddr defaultVAddr va = derivedRefChild) /\
-(forall idx : index,
-StateLib.getIndexOfAddr pdChild fstLevel = idx ->
-isVE ptPDChildSh1 idx s /\ getTableAddrRoot ptPDChildSh1 sh1idx currentPart pdChild s) /\
-(defaultPage =? ptPDChildSh1) = false /\
-(exists va : vaddr, isEntryVA ptPDChildSh1 idxPDChild va s /\ beqVAddr defaultVAddr va = derivedPDChild) /\
-(forall idx : index,
-StateLib.getIndexOfAddr shadow1 fstLevel = idx ->
-isVE ptSh1ChildFromSh1 idx s /\ getTableAddrRoot ptSh1ChildFromSh1 sh1idx currentPart shadow1 s) /\
-(defaultPage =? ptSh1ChildFromSh1) = false /\
-(exists va : vaddr, isEntryVA ptSh1ChildFromSh1 idxSh1 va s /\ beqVAddr defaultVAddr va = derivedSh1Child) /\
-(forall idx : index,
-StateLib.getIndexOfAddr shadow2 fstLevel = idx ->
-isVE childSh2 idx s /\ getTableAddrRoot childSh2 sh1idx currentPart shadow2 s) /\
-(defaultPage =? childSh2) = false /\
-(exists va : vaddr, isEntryVA childSh2 idxSh2 va s /\ beqVAddr defaultVAddr va = derivedSh2Child) /\
-(forall idx : index,
-StateLib.getIndexOfAddr list fstLevel = idx ->
-isVE childListSh1 idx s /\ getTableAddrRoot childListSh1 sh1idx currentPart list s) /\
-(defaultPage =? childListSh1) = false /\
-(exists va : vaddr,
-isEntryVA childListSh1 idxConfigPagesList va s /\ beqVAddr defaultVAddr va = derivedRefChildListSh1) /\
-isEntryPage ptPDChild idxPDChild phyPDChild s /\
-(defaultPage =? phyPDChild) = false /\
-(forall partition : page,
-In partition (getPartitions multiplexer s) ->
-~ (partition = phyPDChild \/ In phyPDChild (getConfigPagesAux partition s))) /\
-isEntryPage ptSh1Child idxSh1 phySh1Child s /\
-(defaultPage =? phySh1Child) = false /\
-(forall partition : page,
-In partition (getPartitions multiplexer s) ->
-~ (partition = phySh1Child \/ In phySh1Child (getConfigPagesAux partition s))) /\
-isEntryPage ptSh2Child idxSh2 phySh2Child s /\
-(defaultPage =? phySh2Child) = false /\
-(forall partition : page,
-In partition (getPartitions multiplexer s) ->
-~ (partition = phySh2Child \/ In phySh2Child (getConfigPagesAux partition s))) /\
-isEntryPage ptConfigPagesList idxConfigPagesList phyConfigPagesList s /\
-(defaultPage =? phyConfigPagesList) = false /\
-(forall partition : page,
-In partition (getPartitions multiplexer s) ->
-~ (partition = phyConfigPagesList \/ In phyConfigPagesList (getConfigPagesAux partition s))) /\
-isEntryPage ptRefChild idxRefChild phyDescChild s /\ (defaultPage =? phyDescChild) = false /\
-(forall partition : page,
-In partition (getPartitions multiplexer s) -> ~ In phyDescChild (getConfigPages partition s)) /\
-entryUserFlag ptPDChild idxPDChild false s /\ entryUserFlag ptSh1Child idxSh1 false s /\
-entryUserFlag ptSh2Child idxSh2 false s /\ entryUserFlag ptConfigPagesList idxConfigPagesList false s /\
-entryUserFlag ptRefChild idxRefChild false s.
-
-
+    *)
 Lemma WriteAccessibleRec descParent va pdChild currentPart currentPD level ptRefChild descChild idxRefChild presentRefChild
   ptPDChild idxPDChild presentPDChild  ptSh1Child shadow1 idxSh1
  presentSh1  ptSh2Child shadow2 idxSh2 presentSh2  ptConfigPagesList 

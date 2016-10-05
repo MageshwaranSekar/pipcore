@@ -1690,7 +1690,7 @@ apply readPhyEntryInGetTablePages with idx; trivial.
 destruct idx. simpl in *; trivial.
 assert (idx = (CIndex idx)) as Hidx.
 symmetry. 
-apply CIndexEq.
+apply indexEqId.
 rewrite <- Hidx. assumption.
 induction (getTablePages root tableSize s).
 now contradict HIn.
@@ -1730,7 +1730,7 @@ apply beq_nat_false in Hnotnull. unfold not. intros.
 contradict Hnotnull.
 rewrite H0. trivial.
 assert (idx = (CIndex idx)) as Hidx'.
-symmetry. apply CIndexEq. rewrite <- Hidx'.
+symmetry. apply indexEqId. rewrite <- Hidx'.
 assumption. right.
 induction ((getTablePages root tableSize s)).
 now contradict Htbl.
@@ -1783,7 +1783,7 @@ destruct idx1. simpl in *. trivial.
 apply beq_nat_false in Hnotnull2.
 unfold not;intros; apply Hnotnull2; clear Hk; subst;trivial.
 assert(CIndex idx1 =  idx1) as Hcidx.
-apply CIndexEq.
+apply indexEqId.
 rewrite Hcidx; trivial. 
 assert ( In p  (getTablePages root tableSize s)) as Hproot. 
 apply readPhyEntryInGetTablePages with idx2; trivial.
@@ -1792,7 +1792,7 @@ apply beq_nat_false in Hnotnull1.
 unfold not;intros; apply Hnotnull1;
 clear Hk; subst;trivial.
 assert(CIndex idx2 =  idx2) as Hcidx.
-apply CIndexEq. rewrite Hcidx. trivial.
+apply indexEqId. rewrite Hcidx. trivial.
 move Hnodup2 at bottom.
 clear Hnoduproot Hk.
 induction (getTablePages root tableSize s);  [ 
@@ -2172,7 +2172,7 @@ destruct H.
                 apply beq_nat_false in Hnull1. unfold not. contradict Hnull1.
                 subst. trivial.
                 assert ((StateLib.getIndexOfAddr va1 level1) = (CIndex (StateLib.getIndexOfAddr va1 level1))).
-                symmetry. apply CIndexEq. rewrite <- H2. assumption.
+                symmetry. apply indexEqId. rewrite <- H2. assumption.
                 generalize(Hlevel p  Hp); intros Hpage0.
                 assert (In p0 (getIndirectionsAux root2 s n0) ) as Hp0.
                 apply readPhyEntryInGetIndirectionsAux; trivial.
@@ -2183,7 +2183,7 @@ destruct H.
                 apply beq_nat_false in Hnull2. unfold not. contradict Hnull2.
                 subst. trivial.
                 assert ((StateLib.getIndexOfAddr va2 level1) = (CIndex (StateLib.getIndexOfAddr va2 level1))) as Hcidx.
-                symmetry. apply CIndexEq. rewrite <- Hcidx. assumption.
+                symmetry. apply indexEqId. rewrite <- Hcidx. assumption.
                 destruct (getIndirectionsAux root2 s n0). simpl in *. now contradict Hp0.
                 simpl in *. unfold not in *.
                 intros. apply Hpage0.
@@ -2263,10 +2263,10 @@ destruct H.
           apply getTablePagesNoDupFlatMap  with n0; trivial. omega.
           assert (H :(CIndex (StateLib.getIndexOfAddr va2 (CLevel (n0 - 1)))) =
           (StateLib.getIndexOfAddr va2 (CLevel (n0 - 1)))).
-          apply CIndexEq. rewrite H; trivial. 
+          apply indexEqId. rewrite H; trivial. 
           assert (H2 :(CIndex (StateLib.getIndexOfAddr va1 (CLevel (n0 - 1)))) =
           (StateLib.getIndexOfAddr va1 (CLevel (n0 - 1)))).
-          apply CIndexEq. rewrite H2. trivial.
+          apply indexEqId. rewrite H2. trivial.
           apply NPeano.Nat.eqb_neq. unfold not. intros. rewrite H in Hidx.
           apply beq_nat_false in Hidx. now contradict Hidx.
           apply beq_nat_false in Hnull1.
@@ -2355,10 +2355,10 @@ destruct H.
           apply getTablePagesNoDupFlatMap  with n0; trivial. omega.
           assert (H :(CIndex (StateLib.getIndexOfAddr va2 level1)) =
           (StateLib.getIndexOfAddr va2 level1)).
-          apply CIndexEq. rewrite H; trivial. 
+          apply indexEqId. rewrite H; trivial. 
           assert (H2 :(CIndex (StateLib.getIndexOfAddr va1 level1)) =
           (StateLib.getIndexOfAddr va1 level1)).
-          apply CIndexEq. rewrite H2. trivial.
+          apply indexEqId. rewrite H2. trivial.
           apply NPeano.Nat.eqb_neq. unfold not. intros. rewrite H in Hidx.
           apply beq_nat_false in Hidx. now contradict Hidx.
           apply beq_nat_false in Hnull1.
@@ -2535,21 +2535,6 @@ Proof.
   contradict Hnotnull2. subst. trivial.
 Qed.
 
-Lemma checkVAddrsEqualityWOOffsetPermut va1 va2 level1 : 
-  StateLib.checkVAddrsEqualityWOOffset nbLevel va1 va2 level1 = 
-  StateLib.checkVAddrsEqualityWOOffset nbLevel va2 va1 level1. 
-Proof.
-  revert va1 va2 level1.
-  induction nbLevel.
-  simpl. trivial.
-  simpl. intros.
-  case_eq (StateLib.Level.eqb level1 fstLevel); intros.
-  apply NPeano.Nat.eqb_sym.
-  case_eq(StateLib.Level.pred level1);
-  intros; trivial. 
-  rewrite  NPeano.Nat.eqb_sym.
-  case_eq (StateLib.getIndexOfAddr va2 level1 =? StateLib.getIndexOfAddr va1 level1); intros; trivial.
-Qed. 
 Lemma entryUserFlagUpdateUserFlagSameValue table1 table2 idx1 idx2 flag entry s  :
 entryUserFlag table1 idx1 flag s->
  entryUserFlag table1 idx1 flag

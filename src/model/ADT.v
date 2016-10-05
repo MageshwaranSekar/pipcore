@@ -53,9 +53,10 @@ Proof. unfold tableSize; auto. Qed.
 Axiom tableSize nbLevel nbPage: nat.
 Axiom nbLevelNotZero: nbLevel > 0.
 Axiom nbPageNotZero: nbPage > 0.
+
 (* Axiom tableSizeNotZero : tableSize <> 0. *)
 
-
+Axiom tableSizeIsEven : Nat.Even tableSize.
 (* END NOT SIMULATION *)
 Definition tableSizeLowerBound := 10.  
 Axiom tableSizeBigEnough : tableSize > tableSizeLowerBound. (* to be fixed on count **) 

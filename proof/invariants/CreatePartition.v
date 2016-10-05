@@ -35,9 +35,8 @@
     We prove that this PIP service preserves the isolation property *)
 Require Import Model.ADT Model.Hardware Core.Services Isolation
 Consistency Invariants WeakestPreconditions Model.Lib StateLib
-Model.MAL InitPEntryTable DependentTypeLemmas GetTableAddr 
-WriteAccessible WriteAccessibleRec WritePhyEntry InternalLemmas  
-InitConfigPagesList Lib.
+Model.MAL InitConfigPagesList InitPEntryTable DependentTypeLemmas  GetTableAddr 
+WriteAccessible WriteAccessibleRec WritePhyEntry InternalLemmas  Lib CreatePartitionPropagatedProperties.
  Require Import Omega Bool  Coq.Logic.ProofIrrelevance List.
 
 Lemma createPartition (descChild pdChild shadow1 shadow2 list : vaddr) :
@@ -4933,12 +4932,116 @@ eapply WP.bindRev.
       assumption. }
     intros resinittablesh2. simpl.
 (** initConfigPagesList **)
+    eapply WP.bindRev.
+    eapply WP.weaken.
+    eapply conjPrePost.
+    eapply initConfigPagesListPropagateProperties.
 
-    admit.
-(*    eapply bindRev. 
-    admit. *)
+    intuition.
+    eapply initConfigPagesListNewProperty.
+    simpl; intros.
+    split.
+    rewrite <- and_assoc. 
+    split.
+    repeat rewrite andb_true_iff in Hlegit.
+    repeat rewrite and_assoc in Hlegit.
+    destruct Hlegit as (H1 & _ & H2 & _ & H3 & _ & H4 & _ & H5 & _ ).
+    subst.
+    apply H0.
+    left. intuition.
+    split.
+    intros.
+    assert (zero = CIndex 0) as Hzero.
+    intuition.
+    subst.
+    left; trivial.
+    assert (zero = CIndex 0) as Hzero.
+    intuition.
+    subst.
+    split; intros.
+    unfold CIndex in H3.
+    case_eq (lt_dec 0 tableSize).
+    intros.
+    rewrite H4 in H3.
+    simpl in *. omega.
+    intros.
+    contradict H4.
+    assert (tableSize > tableSizeLowerBound).
+    apply tableSizeBigEnough.
+    unfold tableSizeLowerBound in *.
+    omega.
+    intros.
+    unfold CIndex in H2.
+    case_eq (lt_dec 0 tableSize).
+    intros.
+    rewrite H3 in H2.
+    simpl in *. omega.
+    intros.
+    contradict H3.
+    assert (tableSize > tableSizeLowerBound).
+    apply tableSizeBigEnough.
+    unfold tableSizeLowerBound in *.
+    omega.
+    intros [].
+    simpl.
+(** getPRidx **)
+    eapply bindRev.
+    eapply weaken.
+    eapply Invariants.getPRidx.
+    intros.
+    simpl.
+    pattern s in H0.
+    eapply H0.
+    simpl.
+    intros idxPR.
+(** updatePartitionRef : add the partition descriptor itself *)
+    eapply bindRev.
+    eapply WP.weaken.
+    eapply conjPrePost.
+    eapply updatePartitionRefPropagatedProperties.
+    repeat rewrite andb_true_iff in Hlegit.
+    intuition.
+    eapply updatePartitionRefNewProperty.
+    simpl.
+    intros.
+    split.
+    eassumption.
+    trivial.
+    simpl.
+    unfold propagatedProperties in *.
+    unfold consistency in *.
+    intuition.
+    subst.
+    assert (Hpde : partitionDescriptorEntry s) by trivial.
+    unfold  partitionDescriptorEntry in *.
+    assert (Hcur : In (currentPartition s) (getPartitions multiplexer s)).
+    unfold currentPartitionInPartitionsList in *.
+    intuition.
+    apply Hpde with (currentPartition s)  PRidx in Hcur.
+    intuition.
+    repeat right; trivial.
+    intros [].
+(** getPDidx **)
+    eapply bindRev.
+    eapply weaken.
+    eapply Invariants.getPDidx.
+    intros.
+    simpl.
+    pattern s in H0.
+    eapply H0.
+    simpl.
+    intros idxPD.
+
+(** updatePartitionRef : add the page directory into the partition descriptor *)
+    eapply WP.bindRev.
+    eapply WP.weaken.
+    eapply conjPrePost.
+    eapply updatePartitionRefPropagatedProperties.
+    eapply updatePartitionRefNewProperty.
+    unfold Internal.updatePartitionRef.
+    
 (** TODO : To be finished *)
-
+    admit.
  - 
     intros HNotlegit. 
       eapply WP.weaken. eapply WP.ret .

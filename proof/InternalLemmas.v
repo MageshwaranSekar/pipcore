@@ -1113,7 +1113,7 @@ split.
   - destruct (StateLib.getIndexOfAddr va level1). simpl. assumption.
   - assert ((StateLib.getIndexOfAddr va level1) = (CIndex (StateLib.getIndexOfAddr va level1))).
     symmetry. 
-    apply CIndexEq.
+    apply indexEqId.
     rewrite <- H0. assumption.
 + assert (Hnbl : n0 <= nbLevel). omega.
   apply IHn0   with va pred (S stop - 1); trivial.
@@ -2179,3 +2179,19 @@ assert(Hin : In table1 (getConfigPagesAux currentPart s)).
   unfold not; intros Hnot.
   subst; now contradict Hin.
 Qed.
+
+Lemma checkVAddrsEqualityWOOffsetPermut va1 va2 level1 : 
+  StateLib.checkVAddrsEqualityWOOffset nbLevel va1 va2 level1 = 
+  StateLib.checkVAddrsEqualityWOOffset nbLevel va2 va1 level1. 
+Proof.
+  revert va1 va2 level1.
+  induction nbLevel.
+  simpl. trivial.
+  simpl. intros.
+  case_eq (StateLib.Level.eqb level1 fstLevel); intros.
+  apply NPeano.Nat.eqb_sym.
+  case_eq(StateLib.Level.pred level1);
+  intros; trivial. 
+  rewrite  NPeano.Nat.eqb_sym.
+  case_eq (StateLib.getIndexOfAddr va2 level1 =? StateLib.getIndexOfAddr va1 level1); intros; trivial.
+Qed. 
