@@ -67,9 +67,9 @@ Definition getParent partition :=
   perform idx := MALInternal.Index.succ idxPPR in
   readPhysical partition idx.
 
-(** The [updatePartitionRef] function update an entry into a given partition 
+(** The [updatePartitionDescriptor] function update an entry into a given partition 
     descriptor table *)
-Definition updatePartitionRef partition idxV phypd virtpd :=
+Definition updatePartitionDescriptor partition idxV phypd virtpd :=
   writeVirtual partition idxV virtpd ;;
   perform idxP := MALInternal.Index.succ idxV in
   writePhysical partition idxP phypd .

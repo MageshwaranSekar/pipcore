@@ -35,7 +35,7 @@
     This file contains several invariants of [initPEntryTable] and associated lemmas *)
 Require Import Core.Internal Isolation Consistency WeakestPreconditions Invariants.
 Require Import StateLib Model.Hardware Model.ADT DependentTypeLemmas 
-WritePhyEntry Model.Lib InternalLemmas CreatePartitionPropagatedProperties.
+UpdateMappedPageContent Model.Lib InternalLemmas PropagatedProperties.
 Require Import Coq.Logic.ProofIrrelevance Omega Model.MAL List Bool.
 
 Lemma initPEntryTableNewProperty table (curidx : index):

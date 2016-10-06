@@ -36,7 +36,7 @@
 Require Import Core.Internal Isolation Consistency WeakestPreconditions StateLib
 Model.Hardware Model.ADT Invariants  DependentTypeLemmas
 GetTableAddr Model.MAL Model.Lib Lib InternalLemmas WriteAccessible
-CreatePartitionPropagatedProperties.
+PropagatedProperties.
 Require Import Coq.Logic.ProofIrrelevance Omega List.
 Import List.ListNotations.
 (*

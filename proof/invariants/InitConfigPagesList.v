@@ -35,7 +35,7 @@
     This file contains the invariant of [initConfigPagesList] some associated lemmas *)
 Require Import Core.Internal Isolation Consistency WeakestPreconditions Invariants.
 Require Import StateLib Model.Hardware Model.ADT DependentTypeLemmas
-CreatePartitionPropagatedProperties WritePhysical WritePhyEntry.
+PropagatedProperties  UpdateMappedPageContent.
 Require Import Coq.Logic.ProofIrrelevance Omega Model.MAL List Bool.
 
 Lemma initConfigPagesListNewProperty phyConfigPagesList (curidx : index):

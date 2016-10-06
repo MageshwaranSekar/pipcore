@@ -207,6 +207,28 @@ let entry :=  lookup paddr idx memory beqPage beqIndex  in
   | None => None
  end. 
 
+(** The [readIndex] function returns the index stored into a given table 
+    at a given position in memory. The table should contain only indices 
+    (The type [I] is already defined in [Model.ADT]) *)
+Definition readIndex  (paddr : page) (idx : index) memory : option index :=
+let entry :=  lookup paddr idx memory beqPage beqIndex  in 
+  match entry with
+  | Some (I indexValue) => Some indexValue
+  | Some _ => None
+  | None => None
+ end. 
+ 
+ (** The [readVirtual] function returns the virtual address strored into a given table 
+    at a given position in memory. The table should contain a virtual address at this position 
+    (The type [VA] is already defined in [Model.ADT]) *)
+Definition readVirtual (paddr : page) (idx : index) memory : option vaddr :=
+let entry :=  lookup paddr idx memory beqPage beqIndex  in 
+  match entry with
+  | Some (VA addr) => Some addr
+  | Some _ => None
+  | None => None
+ end. 
+
 (** The [getDefaultPage] function returns the value of the default page *)
 Definition getDefaultPage := defaultPage.
 
@@ -263,9 +285,8 @@ match getNbLevel  with
                end
 end.
 
-(** The [geTrdShadows] returns physical pages used to keep informations about configuration pages 
-    TODO : We NEED the description of configuration pages list.
-    TODO : Rename function
+(** The [geTrdShadows] returns physical pages used to keep informations about 
+    configuration pages 
 *)
 Fixpoint getTrdShadows (sh3 : page) s bound :=
 match bound with 
@@ -281,20 +302,20 @@ end.
 
 (** The [checkChild] function returns true if the given virtual address corresponds 
     to a child of the given partition 
-    TODO : Need to detail the shadow1 data structure 
     *)
 Definition checkChild partition level (s:state) va : bool :=
 let idxVA :=  getIndexOfAddr va fstLevel in 
 match getFstShadow partition s.(memory)  with 
-| Some sh1  => match getIndirection sh1 va level (nbLevel -1) s with 
-                            |Some tbl => if tbl =? defaultPage 
-                                            then false 
-                                            else match readPDflag tbl idxVA s.(memory) with 
-                                                  |Some flag => flag
-                                                  |None => false
-                                                  end
-                            |None => false 
-                            end
+| Some sh1  => 
+   match getIndirection sh1 va level (nbLevel -1) s with 
+    |Some tbl => if tbl =? defaultPage 
+                    then false 
+                    else match readPDflag tbl idxVA s.(memory) with 
+                          |Some flag => flag
+                          |None => false
+                          end
+    |None => false 
+    end
 | _ => false
 end.
 
@@ -529,6 +550,70 @@ match Index.succ idxroot with
 | _ => False 
 end.
 
+(** The [entryPresentFlag] proposition reutrns True if the entry at position [idx]
+    into the given physical page [table] is type of [PP] and the present flag stored into 
+    this entry is equal to a given flag [flag] *)
+Definition entryPresentFlag table idx flag s:= 
+match lookup table idx s.(memory) beqPage beqIndex with 
+| Some (PE entry) => flag =  entry.(present)
+| _ => False
+end. 
+
+(** The [entryPDFlag]  proposition reutrns True if the entry at position [idx]
+    into the given physical page [table] is type of [VE] and the pd flag stored into 
+    this entry is equal to a given flag [flag] *)
+Definition entryPDFlag table idx flag s:= 
+match lookup table idx s.(memory) beqPage beqIndex with 
+| Some (VE entry) => flag =  entry.(pd)
+| _ => False
+end. 
+
+(** The [entryUserFlag] proposition reutrns True if the entry at position [idx]
+    into the given physical page [table] is type of [VE] and the user flag stored into 
+    this entry is equal to a given flag [flag] *)
+Definition entryUserFlag table idx flag s:= 
+match lookup table idx s.(memory) beqPage beqIndex with 
+| Some (PE entry) => flag =  entry.(user)
+| _ => False
+end. 
+
+(** The [VEDerivation] proposition reutrns True if the entry at position [idx]
+    into the given physical page [table] is type of [VE] and the given boolean value 
+    [res] specifies if the virtual address stored into  
+    this entry is equal or not to the default virtual address *)
+Definition VEDerivation table idx (res : bool) s:= 
+match lookup table idx s.(memory) beqPage beqIndex with 
+| Some (VE entry) => ~ (beqVAddr entry.(va) defaultVAddr) = res
+| _ => False
+end. 
+
+(** The [isEntryVA] proposition reutrns True if the entry at position [idx]
+    into the given physical page [table] is type of [VE] and the virtual address
+    stored into this entry is equal to a given virtual address [v1] *)
+Definition isEntryVA table idx v1 s:=
+ match lookup table idx (memory s) beqPage beqIndex with 
+ | Some (VE entry)  => entry.(va) = v1
+ | _ => False
+ end.
+
+(** The [isVA'] proposition reutrns True if the entry at position [idx]
+    into the given physical page [table] is type of [VA] and the virtual address
+    stored into this entry is equal to a given virtual address [v1] *)
+Definition isVA' table idx v1 s:=
+ match lookup table idx (memory s) beqPage beqIndex with 
+ | Some (VA entry)  => entry = v1
+ | _ => False
+ end.
+
+(** The [isEntryPage] proposition reutrns True if the entry at position [idx]
+    into the given page [table] is type of [PE] and physical page stored into this entry 
+    is equal to a given physical page [page1]*)
+Definition isEntryPage table idx page1 s:=
+ match lookup table idx (memory s) beqPage beqIndex with 
+ | Some (PE entry)  => entry.(pa) = page1
+ | _ => False
+ end.
+ 
 (** The [getTableAddrRoot'] proposition returns True if the given physical page [table]
 is a configuration table into different structures (pd, shadow1 or shadow2). This table should be associated to the 
 given virtual address [va]  *)

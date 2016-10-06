@@ -260,40 +260,35 @@ Definition createPartition (descChild pdChild shadow1Child shadow2Child
         (** Initialize phyConfigPagesList table *)
         initConfigPagesList phyConfigPagesList zero ;;
 
-        (** Set the virtual address pdChild as derived by the new child *)
-        writeVirEntry ptPDChildFromSh1 idxPDChild descChild ;;
-        (**  Set the virtual address shadow1Child as derived by the new child *)
-        writeVirEntry ptSh1ChildFromSh1 idxSh1Child descChild ;; 
-        (**  Set the virtual address shadow2Child as derived by the new child *)
-        writeVirEntry ptSh2ChildFromSh1 idxSh2Child descChild ;; 
-        (**  Set the virtual address list as derived by the new child *)
-        writeVirEntry ptConfigPagesListFromSh1 idxConfigPagesList descChild ;; 
-
-
         (** Add descChild and its physical address into itself (the partion descriptor) *)
+        perform nullVA :=  getDefaultVAddr in
         perform idxPR := getPRidx in
-        updatePartitionRef phyDescChild idxPR phyDescChild descChild ;;
+        perform idxPD := getPDidx in
+        perform idxSh1 := getSh1idx in
+        perform idxSh2 := getSh2idx in
+        perform idxListConf := getSh3idx in
+        perform idxPRP := getPPRidx in 
+        updatePartitionDescriptor phyDescChild idxPR phyDescChild descChild ;;
 
         (** Add pdChild and its physical address into the partition descriptor page *)
-        perform idxPD := getPDidx in
-        updatePartitionRef phyDescChild idxPD phyPDChild pdChild ;;
+(*         perform idxPD := getPDidx in *)
+        updatePartitionDescriptor phyDescChild idxPD phyPDChild pdChild ;;
 
         (** Add shadow1Child and its physical address into the partition descriptor *)
-        perform idxSh1 := getSh1idx in
-        updatePartitionRef phyDescChild idxSh1 phySh1Child shadow1Child ;;
+        (* perform idxSh1 := getSh1idx in *)
+        updatePartitionDescriptor phyDescChild idxSh1 phySh1Child shadow1Child ;;
 
         (** Add shadow2Child and its physical address into the partition descriptor *)
-        perform idxSh2 := getSh2idx in
-        updatePartitionRef phyDescChild idxSh2 phySh2Child shadow2Child ;;
+        (* perform idxSh2 := getSh2idx in *)
+        updatePartitionDescriptor phyDescChild idxSh2 phySh2Child shadow2Child ;;
 
         (** Add ConfigPagesList and its physical address into the partition descriptor *)
-        perform idxListConf := getSh3idx in
-        updatePartitionRef phyDescChild idxListConf phyConfigPagesList ConfigPagesList ;;
+        (* perform idxListConf := getSh3idx in *)
+        updatePartitionDescriptor phyDescChild idxListConf phyConfigPagesList ConfigPagesList ;;
 
         (** Add parent physical address into the partition descriptor of the child*)
-        perform idxPRP := getPPRidx in
-        perform nullVA :=  getDefaultVAddr in
-        updatePartitionRef phyDescChild idxPRP currentPart nullVA ;;
+       (*  perform idxPRP := getPPRidx in *)
+        updatePartitionDescriptor phyDescChild idxPRP currentPart nullVA ;;
 
         (** Add the kernel mapping *)
         perform kidx := getKidx in

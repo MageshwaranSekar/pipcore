@@ -629,6 +629,27 @@ unfold StateLib.Index.succ in *.
       
       omega.
 Qed.
+
+Lemma indexNotEqSuccNotEq (idx1 idx2 : index): 
+idx1 < tableSize -1 -> 
+idx2 < tableSize -1 -> 
+idx1 <> idx2 -> 
+StateLib.Index.succ idx2 <> StateLib.Index.succ idx1.
+Proof.
+intros.
+unfold Index.succ.
+case_eq (lt_dec (idx2 + 1) tableSize); intros; try omega.  
+case_eq (lt_dec (idx1 + 1) tableSize); intros; try omega.
+destruct idx1; destruct idx2; simpl in *.
+unfold not; intros Hfalse.
+inversion Hfalse.
+assert (i0 = i) by omega.
+subst.
+contradict H1.
+f_equal.
+apply proof_irrelevance.
+Qed.
+
 (** ADT : vaddr **)
 Lemma lengthVAddrNotZero (va : vaddr) : fstLevel < (length va -1).
 Proof. 

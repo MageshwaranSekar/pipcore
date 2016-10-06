@@ -36,7 +36,8 @@
 Require Import Model.ADT Model.Hardware Core.Services Isolation
 Consistency Invariants WeakestPreconditions Model.Lib StateLib
 Model.MAL InitConfigPagesList InitPEntryTable DependentTypeLemmas  GetTableAddr 
-WriteAccessible WriteAccessibleRec WritePhyEntry InternalLemmas  Lib CreatePartitionPropagatedProperties.
+WriteAccessible WriteAccessibleRec UpdateMappedPageContent InternalLemmas  Lib
+UpdatePartitionDescriptor PropagatedProperties.
  Require Import Omega Bool  Coq.Logic.ProofIrrelevance List.
 
 Lemma createPartition (descChild pdChild shadow1 shadow2 list : vaddr) :
@@ -4984,6 +4985,16 @@ eapply WP.bindRev.
     omega.
     intros [].
     simpl.
+(** getDefaultVAddr **)
+    eapply bindRev.
+    eapply weaken.
+    eapply Invariants.getDefaultVAddr.
+    intros.
+    simpl.
+    pattern s in H0.
+    eapply H0.
+    simpl.
+    intros nullv. 
 (** getPRidx **)
     eapply bindRev.
     eapply weaken.
@@ -4994,20 +5005,91 @@ eapply WP.bindRev.
     eapply H0.
     simpl.
     intros idxPR.
-(** updatePartitionRef : add the partition descriptor itself *)
+(** getPDidx **)
+    eapply bindRev.
+    eapply weaken.
+    eapply Invariants.getPDidx.
+    intros.
+    simpl.
+    repeat rewrite and_assoc in H0. 
+    pattern s in H0.
+    eapply H0.
+    simpl.
+    intros idxPD.
+(** getSh1idx **)
+    eapply bindRev.
+    eapply weaken.
+    eapply Invariants.getSh1idx.
+    intros.
+    simpl.
+    repeat rewrite and_assoc in H0. 
+    pattern s in H0.
+    eapply H0.
+    simpl.
+    intros idxSH1.
+(** getSh2idx **)
+    eapply bindRev.
+    eapply weaken.
+    eapply Invariants.getSh2idx.
+    intros.
+    simpl.
+    repeat rewrite and_assoc in H0. 
+    pattern s in H0.
+    eapply H0.
+    simpl.
+    intros idxSH2.
+(** getSh3idx **)
+    eapply bindRev.
+    eapply weaken.
+    eapply Invariants.getSh3idx.
+    intros.
+    simpl.
+    repeat rewrite and_assoc in H0. 
+    pattern s in H0.
+    eapply H0.
+    simpl.
+    intros idxSH3.
+(** getPRPidx **)
+    eapply bindRev.
+    eapply weaken.
+    eapply Invariants.getPPRidx.
+    intros.
+    simpl.
+    repeat rewrite and_assoc in H0. 
+    pattern s in H0.
+    eapply H0.
+    simpl.
+    intros idxPPR.
+(** updatePartitionDescriptor : add the partition descriptor itself *)
     eapply bindRev.
     eapply WP.weaken.
     eapply conjPrePost.
-    eapply updatePartitionRefPropagatedProperties.
+    eapply updatePartitionDescriptorPropagatedProperties.
     repeat rewrite andb_true_iff in Hlegit.
     intuition.
-    eapply updatePartitionRefNewProperty.
+    eapply updatePartitionDescriptorNewProperty.
     simpl.
     intros.
+    split.
+    rewrite <- and_assoc.
     split.
     eassumption.
     trivial.
     simpl.
+    instantiate(1:= ptRefChild).
+    instantiate(1:= descChild).
+    instantiate(1:=  idxRefChild).
+    unfold propagatedProperties in *.
+    assert(Hget1 :forall idx : index,
+                  StateLib.getIndexOfAddr descChild fstLevel = idx ->
+                  isPE ptRefChild idx s /\ 
+                  getTableAddrRoot ptRefChild PDidx currentPart descChild s) by intuition.
+    intuition.
+    apply Hget1; trivial.
+    assert(Hidx : StateLib.getIndexOfAddr descChild fstLevel = idxRefChild) by trivial.
+    generalize (Hget1 idxRefChild Hidx);clear Hget1 ; intros (_ & Hhet1).
+    subst. assumption.
+    subst. assumption.
     unfold propagatedProperties in *.
     unfold consistency in *.
     intuition.
@@ -5020,26 +5102,2129 @@ eapply WP.bindRev.
     apply Hpde with (currentPartition s)  PRidx in Hcur.
     intuition.
     repeat right; trivial.
+    assert (idxPR = PRidx) by intuition.
+    subst.
+    unfold propagatedProperties in *.
+    unfold consistency in *.
+    assert (Hpde : partitionDescriptorEntry s) by intuition.
+    unfold partitionDescriptorEntry in *.
+    intuition.
+    subst.
+    assert (Hcur : In (currentPartition s) (getPartitions multiplexer s)).
+    unfold currentPartitionInPartitionsList in *. 
+    intuition.
+    apply Hpde with (currentPartition s) PRidx   in Hcur.
+    intuition.
+    try repeat right; trivial.
     intros [].
-(** getPDidx **)
-    eapply bindRev.
-    eapply weaken.
-    eapply Invariants.getPDidx.
-    intros.
-    simpl.
-    pattern s in H0.
-    eapply H0.
-    simpl.
-    intros idxPD.
-
-(** updatePartitionRef : add the page directory into the partition descriptor *)
+(** updatePartitionDescriptor : add the page directory into the partition descriptor *)
     eapply WP.bindRev.
+    eapply preAndPost.
     eapply WP.weaken.
     eapply conjPrePost.
-    eapply updatePartitionRefPropagatedProperties.
-    eapply updatePartitionRefNewProperty.
-    unfold Internal.updatePartitionRef.
+    eapply updatePartitionDescriptorPropagatedProperties.
+    intuition.
+    eapply updatePartitionDescriptorNewProperty.
+    simpl.
+    intros.
+    split.
+    split.
+    destruct H0.
+    eassumption.
+    split.
+    destruct H0.
+    eassumption.
+    instantiate(1:= ptRefChild).
+    instantiate(1:= descChild).
+    instantiate(1:=  idxRefChild).
+    unfold propagatedProperties in *.
+    intuition.
+    assert(Hget1 :forall idx : index,
+                  StateLib.getIndexOfAddr descChild fstLevel = idx ->
+                  isPE ptRefChild idx s /\ 
+                  getTableAddrRoot ptRefChild PDidx currentPart descChild s) by intuition.
+    intuition.
+    apply Hget1; trivial.
+    assert(Hget1 :forall idx : index,
+                  StateLib.getIndexOfAddr descChild fstLevel = idx ->
+                  isPE ptRefChild idx s /\ 
+                  getTableAddrRoot ptRefChild PDidx currentPart descChild s) by intuition.
+    intuition.
+    assert(Hidx : StateLib.getIndexOfAddr descChild fstLevel = idxRefChild) by trivial.
+    generalize (Hget1 idxRefChild Hidx);clear Hget1 ; intros (_ & Hhet1).
+    subst. assumption.
+    subst. assumption.
+    unfold propagatedProperties in *.
+    unfold consistency in *.
+    intuition.
+    subst.
+    assert (Hpde : partitionDescriptorEntry s) by trivial.
+    unfold  partitionDescriptorEntry in *.
+    assert (Hcur : In (currentPartition s) (getPartitions multiplexer s)).
+    unfold currentPartitionInPartitionsList in *.
+    intuition.
+    apply Hpde with (currentPartition s)  PDidx in Hcur.
+    intuition.
+    left; trivial.
+    unfold propagatedProperties in *.
+    unfold consistency in *.
+    intuition.
+    subst.
+    assert (Hpde : partitionDescriptorEntry s) by trivial.
+    unfold  partitionDescriptorEntry in *.
+    assert (Hcur : In (currentPartition s) (getPartitions multiplexer s)).
+    unfold currentPartitionInPartitionsList in *.
+    intuition.
+    apply Hpde with (currentPartition s)  PDidx in Hcur.
+    intuition.
+    left; trivial.
+    simpl.
+    eapply weaken.
+    apply updatePartitionDescriptorPropagatedProperties2.
+    simpl.
+    intros.
+    assert(idxPD < tableSize - 1 /\ idxPR < tableSize - 1).
+    { unfold propagatedProperties in *.
+      unfold consistency in *.
+      assert (Hpde : partitionDescriptorEntry s) by intuition.
+      unfold partitionDescriptorEntry in *.
+      intuition.
+      subst.
+      assert (Hcur : In (currentPartition s) (getPartitions multiplexer s)).
+      unfold currentPartitionInPartitionsList in *. 
+      intuition.
+      apply Hpde with (currentPartition s) PDidx   in Hcur.
+      intuition.
+      left; trivial.
+      subst.
+      assert (Hcur : In (currentPartition s) (getPartitions multiplexer s)).
+      unfold currentPartitionInPartitionsList in *. 
+      intuition.
+      apply Hpde with (currentPartition s) PRidx   in Hcur.
+      intuition.
+      try repeat right; trivial. }
+    destruct H0.
+    destruct H0.  
+    intuition.
+    assert(Hnoteq : idxPR <> idxPD).
+    { subst.
+      unfold PDidx. unfold PRidx.
+      apply indexEqFalse ;
+      assert (tableSize > tableSizeLowerBound).
+      apply tableSizeBigEnough.
+      unfold tableSizeLowerBound in *.
+      omega.  apply tableSizeBigEnough.
+      unfold tableSizeLowerBound in *.
+      omega. apply tableSizeBigEnough. omega. }
+    now contradict Hnoteq.
+    subst.
+    unfold StateLib.Index.succ.
+    case_eq (lt_dec (PRidx + 1) tableSize); intros.
+    eexists.
+    split.
+    instantiate (1:= CIndex (PRidx + 1)).
+    f_equal.
+    unfold CIndex .
+    case_eq (lt_dec(PRidx + 1) tableSize); intros.
+    f_equal.
+    apply proof_irrelevance.
+    omega.
+    unfold CIndex.
+    case_eq(lt_dec (PRidx + 1) tableSize ); intros.
+    contradict H13.
+    subst.
+    unfold PDidx. unfold PRidx.
+    unfold CIndex at 3.
+    case_eq (lt_dec 2 tableSize); intros.
+    unfold not; intros.
+    inversion H14.
+    unfold CIndex in H16.
+    case_eq(lt_dec 0 tableSize); intros; rewrite H15 in *.
+    inversion H16.
+    assert (tableSize > tableSizeLowerBound).
+    apply tableSizeBigEnough.
+    unfold tableSizeLowerBound in *.
+    omega.
+    assert (tableSize > tableSizeLowerBound).
+    apply tableSizeBigEnough.
+    unfold tableSizeLowerBound in *.
+    omega.
+    omega.
+    omega.
+    assert(Hnoteq : idxPR <> idxPD).
+    { subst.
+      unfold PDidx. unfold PRidx.
+      apply indexEqFalse ;
+      assert (tableSize > tableSizeLowerBound).
+      apply tableSizeBigEnough.
+      unfold tableSizeLowerBound in *.
+      omega.  apply tableSizeBigEnough.
+      unfold tableSizeLowerBound in *.
+      omega. apply tableSizeBigEnough. omega. }
+    subst.
+    unfold StateLib.Index.succ.
+    case_eq (lt_dec (PDidx + 1) tableSize); intros.
+    eexists.
+    split.
+    instantiate (1:= CIndex (PDidx + 1)).
+    f_equal.
+    unfold CIndex .
+    case_eq (lt_dec(PDidx + 1) tableSize); intros.
+    f_equal.
+    apply proof_irrelevance.
+    omega.
+    unfold CIndex.
+    case_eq(lt_dec (PDidx + 1) tableSize ); intros.
+    contradict H13.
+    subst.
+    unfold PDidx. unfold PRidx.
+    unfold CIndex at 3.
+    case_eq (lt_dec 0 tableSize); intros.
+    unfold not; intros.
+    inversion H14.
+    unfold CIndex in H16.
+    case_eq(lt_dec 0 tableSize); intros; rewrite H15 in *.
+    inversion H16.
+    assert (tableSize > tableSizeLowerBound).
+    apply tableSizeBigEnough.
+    unfold tableSizeLowerBound in *.
+    omega.
+    assert (tableSize > tableSizeLowerBound).
+    apply tableSizeBigEnough.
+    unfold tableSizeLowerBound in *.
+    omega.
+    omega.
+    omega.
+    omega.
+    simpl.
+    intros [].
+(** updatePartitionDescriptor : add the page directory into the partition descriptor *)
+eapply WP.bindRev.
+    eapply preAndPost.
+        eapply preAndPost.
+    eapply WP.weaken.
+    eapply conjPrePost.
+    eapply updatePartitionDescriptorPropagatedProperties.
+    intuition.
+    eapply updatePartitionDescriptorNewProperty.
+    simpl.
+    intros.
+    repeat rewrite and_assoc in H0.
+    repeat rewrite and_assoc.
+    destruct H0.
+    destruct H1.
+    split. 
+    eapply H0.
+    instantiate(1:= ptRefChild).
+    instantiate(1:= descChild).
+    instantiate(1:=  idxRefChild).
+    instantiate(1:=  idxPPR).
+    instantiate(1:= idxSH3).
+    instantiate(1:= idxSH2).
+    instantiate(1:=  idxSH1).
+    instantiate(1:=  idxPD).
+    instantiate(1:=  idxPR).
+    instantiate(1:=  nullv).
+    instantiate(1:=  zero).
+    unfold propagatedProperties in *.
+    intuition.
+    assert(Hget1 :forall idx : index,
+                  StateLib.getIndexOfAddr descChild fstLevel = idx ->
+                  isPE ptRefChild idx s /\ 
+                  getTableAddrRoot ptRefChild PDidx currentPart descChild s) by intuition.
+    intuition.
+    apply Hget1; trivial.
+    assert(Hget1 :forall idx : index,
+                  StateLib.getIndexOfAddr descChild fstLevel = idx ->
+                  isPE ptRefChild idx s /\ 
+                  getTableAddrRoot ptRefChild PDidx currentPart descChild s) by intuition.
+    intuition.
+    assert(Hidx : StateLib.getIndexOfAddr descChild fstLevel = idxRefChild) by trivial.
+    generalize (Hget1 idxRefChild Hidx);clear Hget1 ; intros (_ & Hhet1).
+    subst. assumption.
+    subst. assumption.
+    unfold propagatedProperties in *.
+    unfold consistency in *.
+    intuition.
+    subst.
+    assert (Hpde : partitionDescriptorEntry s) by trivial.
+    unfold  partitionDescriptorEntry in *.
+    assert (Hcur : In (currentPartition s) (getPartitions multiplexer s)).
+    unfold currentPartitionInPartitionsList in *.
+    intuition.
+    apply Hpde with (currentPartition s)  sh1idx in Hcur.
+    intuition.
+    right;left; trivial.
+    unfold propagatedProperties in *.
+    unfold consistency in *.
+    intuition.
+    subst.
+    assert (Hpde : partitionDescriptorEntry s) by trivial.
+    unfold  partitionDescriptorEntry in *.
+    assert (Hcur : In (currentPartition s) (getPartitions multiplexer s)).
+    unfold currentPartitionInPartitionsList in *.
+    intuition.
+    apply Hpde with (currentPartition s) sh1idx  in Hcur.
+    intuition.
+    right; left; trivial.
+    simpl.
+    simpl.
+    eapply weaken.
+    apply updatePartitionDescriptorPropagatedProperties2.
+    simpl.
+    intros.
+    assert(idxPD < tableSize - 1 /\ idxSH1 < tableSize - 1).
+    { unfold propagatedProperties in *.
+      unfold consistency in *.
+      assert (Hpde : partitionDescriptorEntry s) by intuition.
+      unfold partitionDescriptorEntry in *.
+      intuition.
+      subst.
+      assert (Hcur : In (currentPartition s) (getPartitions multiplexer s)).
+      unfold currentPartitionInPartitionsList in *. 
+      intuition.
+      apply Hpde with (currentPartition s) PDidx   in Hcur.
+      intuition.
+      left; trivial.
+      subst.
+      assert (Hcur : In (currentPartition s) (getPartitions multiplexer s)).
+      unfold currentPartitionInPartitionsList in *. 
+      intuition.
+      apply Hpde with (currentPartition s) sh1idx   in Hcur.
+      intuition.
+      right;left;trivial. }
+    destruct H0.
+    destruct H0.  
+    intuition.
+    assert(Hnoteq : idxPD <> idxSH1).
+    { subst.
+      unfold PDidx. unfold sh1idx.
+      apply indexEqFalse ;
+      assert (tableSize > tableSizeLowerBound).
+      apply tableSizeBigEnough.
+      unfold tableSizeLowerBound in *.
+      omega.  apply tableSizeBigEnough.
+      unfold tableSizeLowerBound in *.
+      omega. apply tableSizeBigEnough. omega. }
+    now contradict Hnoteq.
+    subst.
+    unfold StateLib.Index.succ.
+    case_eq (lt_dec (PDidx + 1) tableSize); intros.
+    eexists.
+    split.
+    instantiate (1:= CIndex (PDidx + 1)).
+    f_equal.
+    unfold CIndex .
+    case_eq (lt_dec(PDidx + 1) tableSize); intros.
+    f_equal.
+    apply proof_irrelevance.
+    omega.
+    unfold CIndex.
+    case_eq(lt_dec (PDidx + 1) tableSize ); intros.
+    contradict H13.
+    subst.
+    unfold sh1idx. unfold PDidx.
+    unfold CIndex at 3.
+    case_eq (lt_dec 4 tableSize); intros.
+    unfold not; intros.
+    inversion H14.
+    unfold CIndex in H16.
+    case_eq(lt_dec 2 tableSize); intros; rewrite H15 in *.
+    inversion H16.
+    assert (tableSize > tableSizeLowerBound).
+    apply tableSizeBigEnough.
+    unfold tableSizeLowerBound in *.
+    omega.
+    assert (tableSize > tableSizeLowerBound).
+    apply tableSizeBigEnough.
+    unfold tableSizeLowerBound in *.
+    omega.
+    omega.
+    omega.
+    assert(Hnoteq : idxPR <> idxPD).
+    { subst.
+      unfold PDidx. unfold PRidx.
+      apply indexEqFalse ;
+      assert (tableSize > tableSizeLowerBound).
+      apply tableSizeBigEnough.
+      unfold tableSizeLowerBound in *.
+      omega.  apply tableSizeBigEnough.
+      unfold tableSizeLowerBound in *.
+      omega. apply tableSizeBigEnough. omega. }
+    subst.
+    unfold StateLib.Index.succ.
+    case_eq (lt_dec (sh1idx + 1) tableSize); intros.
+    eexists.
+    split.
+    instantiate (1:= CIndex (sh1idx + 1)).
+    f_equal.
+    unfold CIndex .
+    case_eq (lt_dec(sh1idx + 1) tableSize); intros.
+    f_equal.
+    apply proof_irrelevance.
+    omega.
+    unfold CIndex.
+    case_eq(lt_dec (sh1idx + 1) tableSize ); intros.
+    contradict H13.
+    subst.
+    unfold PDidx. unfold sh1idx.
+    unfold CIndex at 3.
+    case_eq (lt_dec 2 tableSize); intros.
+    unfold not; intros.
+    inversion H14.
+    unfold CIndex in H16.
+    case_eq(lt_dec 4 tableSize); intros; rewrite H15 in *.
+    inversion H16.
+    assert (tableSize > tableSizeLowerBound).
+    apply tableSizeBigEnough.
+    unfold tableSizeLowerBound in *.
+    omega.
+    assert (tableSize > tableSizeLowerBound).
+    apply tableSizeBigEnough.
+    unfold tableSizeLowerBound in *.
+    omega.
+    omega.
+    omega.
+      eapply weaken.
+    apply updatePartitionDescriptorPropagatedProperties2.
+    simpl.
+    intros.
+    assert(idxPR < tableSize - 1 /\ idxSH1 < tableSize - 1).
+    { unfold propagatedProperties in *.
+      unfold consistency in *.
+      assert (Hpde : partitionDescriptorEntry s) by intuition.
+      unfold partitionDescriptorEntry in *.
+      intuition.
+      subst.
+      assert (Hcur : In (currentPartition s) (getPartitions multiplexer s)).
+      unfold currentPartitionInPartitionsList in *. 
+      intuition.
+      apply Hpde with (currentPartition s) PRidx   in Hcur.
+      intuition.
+      repeat right ; trivial.
+      subst.
+      assert (Hcur : In (currentPartition s) (getPartitions multiplexer s)).
+      unfold currentPartitionInPartitionsList in *. 
+      intuition.
+      apply Hpde with (currentPartition s) sh1idx   in Hcur.
+      intuition.
+      right;left;trivial. }
+    destruct H0.
+    destruct H0.  
+    intuition.
+    assert(Hnoteq : idxPR <> idxSH1).
+    { subst.
+      unfold PRidx. unfold sh1idx.
+      apply indexEqFalse ;
+      assert (tableSize > tableSizeLowerBound).
+      apply tableSizeBigEnough.
+      unfold tableSizeLowerBound in *.
+      omega.  apply tableSizeBigEnough.
+      unfold tableSizeLowerBound in *.
+      omega. apply tableSizeBigEnough. omega. }
+    now contradict Hnoteq.
+    subst.
+    unfold StateLib.Index.succ.
+    case_eq (lt_dec (PRidx + 1) tableSize); intros.
+    eexists.
+    split.
+    instantiate (1:= CIndex (PRidx + 1)).
+    f_equal.
+    unfold CIndex .
+    case_eq (lt_dec(PRidx + 1) tableSize); intros.
+    f_equal.
+    apply proof_irrelevance.
+    omega.
+    unfold CIndex.
+    case_eq(lt_dec (PRidx + 1) tableSize ); intros.
+    contradict H15.
+    subst.
+    unfold sh1idx. unfold PRidx.
+    unfold CIndex at 3.
+    case_eq (lt_dec 4 tableSize); intros.
+    unfold not; intros.
+    inversion H16.
+    unfold CIndex in H18.
+    case_eq(lt_dec 0 tableSize); intros; rewrite H17 in *.
+    inversion H18.
+    assert (tableSize > tableSizeLowerBound).
+    apply tableSizeBigEnough.
+    unfold tableSizeLowerBound in *.
+    omega.
+    assert (tableSize > tableSizeLowerBound).
+    apply tableSizeBigEnough.
+    unfold tableSizeLowerBound in *.
+    omega.
+    omega.
+    omega.
+    assert(Hnoteq : idxPR <> idxSH1).
+    { subst.
+      unfold sh1idx. unfold PRidx.
+      apply indexEqFalse ;
+      assert (tableSize > tableSizeLowerBound).
+      apply tableSizeBigEnough.
+      unfold tableSizeLowerBound in *.
+      omega.  apply tableSizeBigEnough.
+      unfold tableSizeLowerBound in *.
+      omega. apply tableSizeBigEnough. omega. }
+    subst.
+    unfold StateLib.Index.succ.
+    case_eq (lt_dec (sh1idx + 1) tableSize); intros.
+    eexists.
+    split.
+    instantiate (1:= CIndex (sh1idx + 1)).
+    f_equal.
+    unfold CIndex .
+    case_eq (lt_dec(sh1idx + 1) tableSize); intros.
+    f_equal.
+    apply proof_irrelevance.
+    omega.
+    unfold CIndex.
+    case_eq(lt_dec (sh1idx + 1) tableSize ); intros.
+    contradict H15.
+    subst.
+    unfold PRidx. unfold sh1idx.
+    unfold CIndex at 3.
+    case_eq (lt_dec 0 tableSize); intros.
+    unfold not; intros.
+    inversion H16.
+    unfold CIndex in H18.
+    case_eq(lt_dec 4 tableSize); intros; rewrite H17 in *.
+    inversion H16.
+    assert (tableSize > tableSizeLowerBound).
+    apply tableSizeBigEnough.
+    unfold tableSizeLowerBound in *.
+    omega.
+    assert (tableSize > tableSizeLowerBound).
+    apply tableSizeBigEnough.
+    unfold tableSizeLowerBound in *.
+    omega.
+    omega.
+    omega.  
+    omega.
     
+    simpl.
+    intros [].
+(** updatePartitionDescriptor : add the page directory into the partition descriptor *)
+    eapply WP.bindRev.
+    eapply preAndPost.
+    eapply preAndPost.
+    eapply preAndPost.    
+    eapply WP.weaken.
+    eapply conjPrePost.
+    eapply updatePartitionDescriptorPropagatedProperties.
+    intuition.
+    eapply updatePartitionDescriptorNewProperty.
+    simpl.
+    intros.
+    repeat rewrite and_assoc in H0.
+    repeat rewrite and_assoc.
+    destruct H0.
+    destruct H1.
+    split.
+    eapply H0.
+    instantiate(1:= ptRefChild).
+    instantiate(1:= descChild).
+    instantiate(1:=  idxRefChild).
+    instantiate(1:=  idxPPR).
+    instantiate(1:= idxSH3).
+    instantiate(1:= idxSH2).
+    instantiate(1:=  idxSH1).
+    instantiate(1:=  idxPD).
+    instantiate(1:=  idxPR).
+        instantiate(1:=  nullv).
+    instantiate(1:=  zero).
+    unfold propagatedProperties in *.
+    intuition.
+    assert(Hget1 :forall idx : index,
+                  StateLib.getIndexOfAddr descChild fstLevel = idx ->
+                  isPE ptRefChild idx s /\ 
+                  getTableAddrRoot ptRefChild PDidx currentPart descChild s) by intuition.
+    intuition.
+    apply Hget1; trivial.
+    assert(Hget1 :forall idx : index,
+                  StateLib.getIndexOfAddr descChild fstLevel = idx ->
+                  isPE ptRefChild idx s /\ 
+                  getTableAddrRoot ptRefChild PDidx currentPart descChild s) by intuition.
+    intuition.
+    assert(Hidx : StateLib.getIndexOfAddr descChild fstLevel = idxRefChild) by trivial.
+    generalize (Hget1 idxRefChild Hidx);clear Hget1 ; intros (_ & Hhet1).
+    subst. assumption.
+    subst. assumption.
+    unfold propagatedProperties in *.
+    unfold consistency in *.
+    intuition.
+    subst.
+    assert (Hpde : partitionDescriptorEntry s) by trivial.
+    unfold  partitionDescriptorEntry in *.
+    assert (Hcur : In (currentPartition s) (getPartitions multiplexer s)).
+    unfold currentPartitionInPartitionsList in *.
+    intuition.
+    apply Hpde with (currentPartition s)  sh2idx in Hcur.
+    subst.
+    intuition.
+    right;right;left; trivial.
+    unfold propagatedProperties in *.
+    unfold consistency in *.
+    intuition.
+    subst.
+    assert (Hpde : partitionDescriptorEntry s) by trivial.
+    unfold  partitionDescriptorEntry in *.
+    assert (Hcur : In (currentPartition s) (getPartitions multiplexer s)).
+    unfold currentPartitionInPartitionsList in *.
+    intuition.
+    apply Hpde with (currentPartition s) sh2idx  in Hcur.
+    intuition.
+    right;right; left; trivial.
+    simpl.
+    simpl.
+    eapply weaken.
+    apply updatePartitionDescriptorPropagatedProperties2.
+    simpl.
+    intros.
+    assert(idxSH2 < tableSize - 1 /\ idxSH1 < tableSize - 1).
+    { unfold propagatedProperties in *.
+      unfold consistency in *.
+      assert (Hpde : partitionDescriptorEntry s) by intuition.
+      unfold partitionDescriptorEntry in *.
+      intuition.
+      subst.
+      assert (Hcur : In (currentPartition s) (getPartitions multiplexer s)).
+      unfold currentPartitionInPartitionsList in *. 
+      intuition.
+      apply Hpde with (currentPartition s) sh2idx   in Hcur.
+      intuition.
+      right;right;left; trivial.
+      subst.
+      assert (Hcur : In (currentPartition s) (getPartitions multiplexer s)).
+      unfold currentPartitionInPartitionsList in *. 
+      intuition.
+      apply Hpde with (currentPartition s) sh1idx   in Hcur.
+      intuition.
+      right;left;trivial. }
+    destruct H0.
+    destruct H0.  
+    intuition.
+    assert(Hnoteq : idxSH2 <> idxSH1).
+    { subst.
+      unfold sh2idx. unfold sh1idx.
+      apply indexEqFalse ;
+      assert (tableSize > tableSizeLowerBound).
+      apply tableSizeBigEnough.
+      unfold tableSizeLowerBound in *.
+      omega.  apply tableSizeBigEnough.
+      unfold tableSizeLowerBound in *.
+      omega. apply tableSizeBigEnough. omega. }
+    now contradict Hnoteq.
+    subst.
+    unfold StateLib.Index.succ.
+    case_eq (lt_dec (sh1idx + 1) tableSize); intros.
+    eexists.
+    split.
+    instantiate (1:= CIndex (sh1idx + 1)).
+    f_equal.
+    unfold CIndex .
+    case_eq (lt_dec(sh1idx + 1) tableSize); intros.
+    f_equal.
+    apply proof_irrelevance.
+    omega.
+    unfold CIndex.
+    case_eq(lt_dec (sh1idx + 1) tableSize ); intros.
+    contradict H13.
+    subst.
+    unfold sh1idx. unfold sh2idx.
+    unfold CIndex at 3.
+    case_eq (lt_dec 6 tableSize); intros.
+    unfold not; intros.
+    inversion H14.
+    unfold CIndex in H16.
+    case_eq(lt_dec 4 tableSize); intros; rewrite H15 in *.
+    inversion H16.
+    assert (tableSize > tableSizeLowerBound).
+    apply tableSizeBigEnough.
+    unfold tableSizeLowerBound in *.
+    omega.
+    assert (tableSize > tableSizeLowerBound).
+    apply tableSizeBigEnough.
+    unfold tableSizeLowerBound in *.
+    omega.
+    omega.
+    omega.
+    assert(Hnoteq : idxSH1 <> idxSH2).
+    { subst.
+      unfold sh1idx. unfold sh2idx.
+      apply indexEqFalse ;
+      assert (tableSize > tableSizeLowerBound).
+      apply tableSizeBigEnough.
+      unfold tableSizeLowerBound in *.
+      omega.  apply tableSizeBigEnough.
+      unfold tableSizeLowerBound in *.
+      omega. apply tableSizeBigEnough. omega. }
+    subst.
+    unfold StateLib.Index.succ.
+    case_eq (lt_dec (sh2idx + 1) tableSize); intros.
+    eexists.
+    split.
+    instantiate (1:= CIndex (sh2idx + 1)).
+    f_equal.
+    unfold CIndex .
+    case_eq (lt_dec(sh2idx + 1) tableSize); intros.
+    f_equal.
+    apply proof_irrelevance.
+    omega.
+    unfold CIndex.
+    case_eq(lt_dec (sh2idx + 1) tableSize ); intros.
+    contradict H13.
+    subst.
+    unfold sh2idx. unfold sh1idx.
+    unfold CIndex at 3.
+    case_eq (lt_dec 4 tableSize); intros.
+    unfold not; intros.
+    inversion H14.
+    unfold CIndex in H16.
+    case_eq(lt_dec 6 tableSize); intros; rewrite H15 in *.
+    inversion H16.
+    assert (tableSize > tableSizeLowerBound).
+    apply tableSizeBigEnough.
+    unfold tableSizeLowerBound in *.
+    omega.
+    assert (tableSize > tableSizeLowerBound).
+    apply tableSizeBigEnough.
+    unfold tableSizeLowerBound in *.
+    omega.
+    omega.
+    omega.
+    
+      eapply weaken.
+    apply updatePartitionDescriptorPropagatedProperties2.
+    simpl.
+    intros.
+    assert(idxSH2 < tableSize - 1 /\ idxPD < tableSize - 1).
+    { unfold propagatedProperties in *.
+      unfold consistency in *.
+      assert (Hpde : partitionDescriptorEntry s) by intuition.
+      unfold partitionDescriptorEntry in *.
+      intuition.
+      subst.
+      assert (Hcur : In (currentPartition s) (getPartitions multiplexer s)).
+      unfold currentPartitionInPartitionsList in *. 
+      intuition.
+      apply Hpde with (currentPartition s) sh2idx   in Hcur.
+      intuition.
+      right;right;left ; trivial.
+      subst.
+      assert (Hcur : In (currentPartition s) (getPartitions multiplexer s)).
+      unfold currentPartitionInPartitionsList in *. 
+      intuition.
+      apply Hpde with (currentPartition s) PDidx   in Hcur.
+      intuition.
+      left;trivial. }
+    destruct H0.
+    destruct H0.  
+    intuition.
+    assert(Hnoteq : idxPD <> idxSH2).
+    { subst.
+      unfold PDidx. unfold sh2idx.
+      apply indexEqFalse ;
+      assert (tableSize > tableSizeLowerBound).
+      apply tableSizeBigEnough.
+      unfold tableSizeLowerBound in *.
+      omega.  apply tableSizeBigEnough.
+      unfold tableSizeLowerBound in *.
+      omega. apply tableSizeBigEnough. omega. }
+    now contradict Hnoteq.
+    subst.
+    unfold StateLib.Index.succ.
+    case_eq (lt_dec (PDidx + 1) tableSize); intros.
+    eexists.
+    split.
+    instantiate (1:= CIndex (PDidx + 1)).
+    f_equal.
+    unfold CIndex .
+    case_eq (lt_dec(PDidx + 1) tableSize); intros.
+    f_equal.
+    apply proof_irrelevance.
+    omega.
+    unfold CIndex.
+    case_eq(lt_dec (PDidx + 1) tableSize ); intros.
+    contradict H15.
+    subst.
+    unfold sh2idx. unfold PDidx.
+    unfold CIndex at 3.
+    case_eq (lt_dec 6 tableSize); intros.
+    unfold not; intros.
+    inversion H16.
+    unfold CIndex in H18.
+    case_eq(lt_dec 2 tableSize); intros; rewrite H17 in *.
+    inversion H18.
+    assert (tableSize > tableSizeLowerBound).
+    apply tableSizeBigEnough.
+    unfold tableSizeLowerBound in *.
+    omega.
+    assert (tableSize > tableSizeLowerBound).
+    apply tableSizeBigEnough.
+    unfold tableSizeLowerBound in *.
+    omega.
+    omega.
+    omega.
+    assert(Hnoteq : idxPD <> idxSH2).
+    { subst.
+      unfold sh2idx. unfold PDidx.
+      apply indexEqFalse ;
+      assert (tableSize > tableSizeLowerBound).
+      apply tableSizeBigEnough.
+      unfold tableSizeLowerBound in *.
+      omega.  apply tableSizeBigEnough.
+      unfold tableSizeLowerBound in *.
+      omega. apply tableSizeBigEnough. omega. }
+    subst.
+    unfold StateLib.Index.succ.
+    case_eq (lt_dec (sh2idx + 1) tableSize); intros.
+    eexists.
+    split.
+    instantiate (1:= CIndex (sh2idx + 1)).
+    f_equal.
+    unfold CIndex .
+    case_eq (lt_dec(sh2idx + 1) tableSize); intros.
+    f_equal.
+    apply proof_irrelevance.
+    omega.
+    unfold CIndex.
+    case_eq(lt_dec (sh2idx + 1) tableSize ); intros.
+    contradict H15.
+    subst.
+    unfold PDidx. unfold sh2idx.
+    unfold CIndex at 3.
+    case_eq (lt_dec 2 tableSize); intros.
+    unfold not; intros.
+    inversion H16.
+    unfold CIndex in H18.
+    case_eq(lt_dec 6 tableSize); intros; rewrite H17 in *.
+    inversion H18.
+    assert (tableSize > tableSizeLowerBound).
+    apply tableSizeBigEnough.
+    unfold tableSizeLowerBound in *.
+    omega.
+    assert (tableSize > tableSizeLowerBound).
+    apply tableSizeBigEnough.
+    unfold tableSizeLowerBound in *.
+    omega.
+    omega.
+    omega.
+          eapply weaken.
+    apply updatePartitionDescriptorPropagatedProperties2.
+    simpl.
+    intros.
+    assert(idxSH2 < tableSize - 1 /\ idxPR < tableSize - 1).
+    { unfold propagatedProperties in *.
+      unfold consistency in *.
+      assert (Hpde : partitionDescriptorEntry s) by intuition.
+      unfold partitionDescriptorEntry in *.
+      intuition.
+      subst.
+      assert (Hcur : In (currentPartition s) (getPartitions multiplexer s)).
+      unfold currentPartitionInPartitionsList in *. 
+      intuition.
+      apply Hpde with (currentPartition s) sh2idx   in Hcur.
+      intuition.
+      right;right;left ; trivial.
+      subst.
+      assert (Hcur : In (currentPartition s) (getPartitions multiplexer s)).
+      unfold currentPartitionInPartitionsList in *. 
+      intuition.
+      apply Hpde with (currentPartition s) PRidx   in Hcur.
+      intuition.
+      repeat right;trivial. }
+    destruct H0.
+    destruct H0.  
+    intuition.
+    assert(Hnoteq : idxPR <> idxSH2).
+    { subst.
+      unfold PRidx. unfold sh2idx.
+      apply indexEqFalse ;
+      assert (tableSize > tableSizeLowerBound).
+      apply tableSizeBigEnough.
+      unfold tableSizeLowerBound in *.
+      omega.  apply tableSizeBigEnough.
+      unfold tableSizeLowerBound in *.
+      omega. apply tableSizeBigEnough. omega. }
+    now contradict Hnoteq.
+    subst.
+    unfold StateLib.Index.succ.
+    case_eq (lt_dec (PRidx + 1) tableSize); intros.
+    eexists.
+    split.
+    instantiate (1:= CIndex (PRidx + 1)).
+    f_equal.
+    unfold CIndex .
+    case_eq (lt_dec(PRidx + 1) tableSize); intros.
+    f_equal.
+    apply proof_irrelevance.
+    omega.
+    unfold CIndex.
+    case_eq(lt_dec (PRidx + 1) tableSize ); intros.
+    contradict H17.
+    subst.
+    unfold sh2idx. unfold PRidx.
+    unfold CIndex at 3.
+    case_eq (lt_dec 6 tableSize); intros.
+    unfold not; intros Hfalse.
+    inversion Hfalse.
+    unfold CIndex in H19.
+    case_eq(lt_dec 0 tableSize); intros; rewrite H18 in *.
+    inversion H19.
+    assert (tableSize > tableSizeLowerBound).
+    apply tableSizeBigEnough.
+    unfold tableSizeLowerBound in *.
+    omega.
+    assert (tableSize > tableSizeLowerBound).
+    apply tableSizeBigEnough.
+    unfold tableSizeLowerBound in *.
+    omega.
+    omega.
+    omega.
+    assert(Hnoteq : idxPR <> idxSH2).
+    { subst.
+      unfold PRidx. unfold sh2idx.
+      apply indexEqFalse ;
+      assert (tableSize > tableSizeLowerBound).
+      apply tableSizeBigEnough.
+      unfold tableSizeLowerBound in *.
+      omega.  apply tableSizeBigEnough.
+      unfold tableSizeLowerBound in *.
+      omega. apply tableSizeBigEnough. omega. }
+    subst.
+    unfold StateLib.Index.succ.
+    case_eq (lt_dec (sh2idx + 1) tableSize); intros.
+    eexists.
+    split.
+    instantiate (1:= CIndex (sh2idx + 1)).
+    f_equal.
+    unfold CIndex .
+    case_eq (lt_dec(sh2idx + 1) tableSize); intros.
+    f_equal.
+    apply proof_irrelevance.
+    omega.
+    unfold CIndex.
+    case_eq(lt_dec (sh2idx + 1) tableSize ); intros.
+    contradict H17.
+    subst.
+    unfold sh2idx. unfold PRidx.
+    unfold CIndex at 3.
+    case_eq (lt_dec 0 tableSize); intros.
+    unfold not; intros Hfalse.
+    inversion Hfalse.
+    unfold CIndex in H19.
+    case_eq(lt_dec 6 tableSize); intros; rewrite H18 in *.
+    inversion H19.
+    assert (tableSize > tableSizeLowerBound).
+    apply tableSizeBigEnough.
+    unfold tableSizeLowerBound in *.
+    omega.
+    assert (tableSize > tableSizeLowerBound).
+    apply tableSizeBigEnough.
+    unfold tableSizeLowerBound in *.
+    omega.
+    omega.
+    omega.
+    simpl; intros [].
+    (** updatePartitionDescriptor : add the config list into the partition descriptor *)
+    eapply WP.bindRev.
+    eapply preAndPost.
+    eapply preAndPost.
+    eapply preAndPost.
+    eapply preAndPost.    
+    eapply WP.weaken.
+    eapply conjPrePost.
+    eapply updatePartitionDescriptorPropagatedProperties.
+    intuition.
+    eapply updatePartitionDescriptorNewProperty.
+    simpl.
+    intros.
+    repeat rewrite and_assoc in H0.
+    repeat rewrite and_assoc.
+    destruct H0.
+    destruct H1.
+    split.
+    eapply H0.
+    instantiate(1:= ptRefChild).
+    instantiate(1:= descChild).
+    instantiate(1:=  idxRefChild).
+    instantiate(1:=  idxPPR).
+    instantiate(1:= idxSH3).
+    instantiate(1:= idxSH2).
+    instantiate(1:=  idxSH1).
+    instantiate(1:=  idxPD).
+    instantiate(1:=  idxPR).
+       instantiate(1:=  nullv).
+    instantiate(1:=  zero).
+    unfold propagatedProperties in *.
+    intuition.
+    assert(Hget1 :forall idx : index,
+                  StateLib.getIndexOfAddr descChild fstLevel = idx ->
+                  isPE ptRefChild idx s /\ 
+                  getTableAddrRoot ptRefChild PDidx currentPart descChild s) by intuition.
+    intuition.
+    apply Hget1; trivial.
+    assert(Hget1 :forall idx : index,
+                  StateLib.getIndexOfAddr descChild fstLevel = idx ->
+                  isPE ptRefChild idx s /\ 
+                  getTableAddrRoot ptRefChild PDidx currentPart descChild s) by intuition.
+    intuition.
+    assert(Hidx : StateLib.getIndexOfAddr descChild fstLevel = idxRefChild) by trivial.
+    generalize (Hget1 idxRefChild Hidx);clear Hget1 ; intros (_ & Hhet1).
+    subst. assumption.
+    subst. assumption.
+    unfold propagatedProperties in *.
+    unfold consistency in *.
+    intuition.
+    subst.
+    assert (Hpde : partitionDescriptorEntry s) by trivial.
+    unfold  partitionDescriptorEntry in *.
+    assert (Hcur : In (currentPartition s) (getPartitions multiplexer s)).
+    unfold currentPartitionInPartitionsList in *.
+    intuition.
+    apply Hpde with (currentPartition s)  sh3idx in Hcur.
+    subst.
+    intuition.
+    do 3 right;left; trivial.
+    unfold propagatedProperties in *.
+    unfold consistency in *.
+    intuition.
+    subst.
+    assert (Hpde : partitionDescriptorEntry s) by trivial.
+    unfold  partitionDescriptorEntry in *.
+    assert (Hcur : In (currentPartition s) (getPartitions multiplexer s)).
+    unfold currentPartitionInPartitionsList in *.
+    intuition.
+    apply Hpde with (currentPartition s) sh3idx  in Hcur.
+    intuition.
+    do 3 right; left; trivial.
+    simpl.
+    eapply weaken.
+    apply updatePartitionDescriptorPropagatedProperties2.
+    simpl.
+    intros.
+    assert(idxSH2 < tableSize - 1 /\ idxSH3 < tableSize - 1).
+    { unfold propagatedProperties in *.
+      unfold consistency in *.
+      assert (Hpde : partitionDescriptorEntry s) by intuition.
+      unfold partitionDescriptorEntry in *.
+      intuition.
+      subst.
+      assert (Hcur : In (currentPartition s) (getPartitions multiplexer s)).
+      unfold currentPartitionInPartitionsList in *. 
+      intuition.
+      apply Hpde with (currentPartition s) sh2idx   in Hcur.
+      intuition.
+      right;right;left; trivial.
+      subst.
+      assert (Hcur : In (currentPartition s) (getPartitions multiplexer s)).
+      unfold currentPartitionInPartitionsList in *. 
+      intuition.
+      apply Hpde with (currentPartition s) sh3idx   in Hcur.
+      intuition.
+      do 3 right;left;trivial. }
+    destruct H0.
+    destruct H0.  
+    intuition.
+    assert(Hnoteq : idxSH2 <> idxSH3).
+    { subst.
+      unfold sh2idx. unfold sh3idx.
+      apply indexEqFalse ;
+      assert (tableSize > tableSizeLowerBound).
+      apply tableSizeBigEnough.
+      unfold tableSizeLowerBound in *.
+      omega.  apply tableSizeBigEnough.
+      unfold tableSizeLowerBound in *.
+      omega. apply tableSizeBigEnough. omega. }
+    now contradict Hnoteq.
+    subst.
+    unfold StateLib.Index.succ.
+    case_eq (lt_dec (sh2idx + 1) tableSize); intros.
+    eexists.
+    split.
+    instantiate (1:= CIndex (sh2idx + 1)).
+    f_equal.
+    unfold CIndex .
+    case_eq (lt_dec(sh2idx + 1) tableSize); intros.
+    f_equal.
+    apply proof_irrelevance.
+    omega.
+    unfold CIndex.
+    case_eq(lt_dec (sh2idx + 1) tableSize ); intros.
+    contradict H13.
+    subst.
+    unfold sh3idx. unfold sh2idx.
+    unfold CIndex at 3.
+    case_eq (lt_dec 8 tableSize); intros.
+    unfold not; intros.
+    inversion H14.
+    unfold CIndex in H16.
+    case_eq(lt_dec 6 tableSize); intros; rewrite H15 in *.
+    inversion H16.
+    assert (tableSize > tableSizeLowerBound).
+    apply tableSizeBigEnough.
+    unfold tableSizeLowerBound in *.
+    omega.
+    assert (tableSize > tableSizeLowerBound).
+    apply tableSizeBigEnough.
+    unfold tableSizeLowerBound in *.
+    omega.
+    omega.
+    omega.
+    assert(Hnoteq : idxSH3 <> idxSH2).
+    { subst.
+      unfold sh3idx. unfold sh2idx.
+      apply indexEqFalse ;
+      assert (tableSize > tableSizeLowerBound).
+      apply tableSizeBigEnough.
+      unfold tableSizeLowerBound in *.
+      omega.  apply tableSizeBigEnough.
+      unfold tableSizeLowerBound in *.
+      omega. apply tableSizeBigEnough. omega. }
+    subst.
+    unfold StateLib.Index.succ.
+    case_eq (lt_dec (sh3idx + 1) tableSize); intros.
+    eexists.
+    split.
+    instantiate (1:= CIndex (sh3idx + 1)).
+    f_equal.
+    unfold CIndex .
+    case_eq (lt_dec(sh3idx + 1) tableSize); intros.
+    f_equal.
+    apply proof_irrelevance.
+    omega.
+    unfold CIndex.
+    case_eq(lt_dec (sh3idx + 1) tableSize ); intros.
+    contradict H13.
+    subst.
+    unfold sh2idx. unfold sh3idx.
+    unfold CIndex at 3.
+    case_eq (lt_dec 6 tableSize); intros.
+    unfold not; intros.
+    inversion H14.
+    unfold CIndex in H16.
+    case_eq(lt_dec 8 tableSize); intros; rewrite H15 in *.
+    inversion H16.
+    assert (tableSize > tableSizeLowerBound).
+    apply tableSizeBigEnough.
+    unfold tableSizeLowerBound in *.
+    omega.
+    assert (tableSize > tableSizeLowerBound).
+    apply tableSizeBigEnough.
+    unfold tableSizeLowerBound in *.
+    omega.
+    omega.
+    omega.
+    
+      eapply weaken.
+    apply updatePartitionDescriptorPropagatedProperties2.
+    simpl.
+    intros.
+    assert(idxSH1 < tableSize - 1 /\ idxSH3 < tableSize - 1).
+    { unfold propagatedProperties in *.
+      unfold consistency in *.
+      assert (Hpde : partitionDescriptorEntry s) by intuition.
+      unfold partitionDescriptorEntry in *.
+      intuition.
+      subst.
+      assert (Hcur : In (currentPartition s) (getPartitions multiplexer s)).
+      unfold currentPartitionInPartitionsList in *. 
+      intuition.
+      apply Hpde with (currentPartition s) sh1idx   in Hcur.
+      intuition.
+      right;left ; trivial.
+      subst.
+      assert (Hcur : In (currentPartition s) (getPartitions multiplexer s)).
+      unfold currentPartitionInPartitionsList in *. 
+      intuition.
+      apply Hpde with (currentPartition s) sh3idx   in Hcur.
+      intuition.
+      do 3 right;left;trivial. }
+    destruct H0.
+    destruct H0.  
+    intuition.
+    assert(Hnoteq : idxSH1 <> idxSH3).
+    { subst.
+      unfold sh1idx. unfold sh3idx.
+      apply indexEqFalse ;
+      assert (tableSize > tableSizeLowerBound).
+      apply tableSizeBigEnough.
+      unfold tableSizeLowerBound in *.
+      omega.  apply tableSizeBigEnough.
+      unfold tableSizeLowerBound in *.
+      omega. apply tableSizeBigEnough. omega. }
+    now contradict Hnoteq.
+    subst.
+    unfold StateLib.Index.succ.
+    case_eq (lt_dec (sh1idx + 1) tableSize); intros.
+    eexists.
+    split.
+    instantiate (1:= CIndex (sh1idx + 1)).
+    f_equal.
+    unfold CIndex .
+    case_eq (lt_dec(sh1idx + 1) tableSize); intros.
+    f_equal.
+    apply proof_irrelevance.
+    omega.
+    unfold CIndex.
+    case_eq(lt_dec (sh1idx + 1) tableSize ); intros.
+    contradict H15.
+    subst.
+    unfold sh1idx. unfold sh3idx.
+    unfold CIndex at 3.
+    case_eq (lt_dec 8 tableSize); intros.
+    unfold not; intros.
+    inversion H16.
+    unfold CIndex in H18.
+    case_eq(lt_dec 4 tableSize); intros; rewrite H17 in *.
+    inversion H18.
+    assert (tableSize > tableSizeLowerBound).
+    apply tableSizeBigEnough.
+    unfold tableSizeLowerBound in *.
+    omega.
+    assert (tableSize > tableSizeLowerBound).
+    apply tableSizeBigEnough.
+    unfold tableSizeLowerBound in *.
+    omega.
+    omega.
+    omega.
+    assert(Hnoteq : idxSH3 <> idxSH1).
+    { subst.
+      unfold sh3idx. unfold sh1idx.
+      apply indexEqFalse ;
+      assert (tableSize > tableSizeLowerBound).
+      apply tableSizeBigEnough.
+      unfold tableSizeLowerBound in *.
+      omega.  apply tableSizeBigEnough.
+      unfold tableSizeLowerBound in *.
+      omega. apply tableSizeBigEnough. omega. }
+    subst.
+    unfold StateLib.Index.succ.
+    case_eq (lt_dec (sh3idx + 1) tableSize); intros.
+    eexists.
+    split.
+    instantiate (1:= CIndex (sh3idx + 1)).
+    f_equal.
+    unfold CIndex .
+    case_eq (lt_dec(sh3idx + 1) tableSize); intros.
+    f_equal.
+    apply proof_irrelevance.
+    omega.
+    unfold CIndex.
+    case_eq(lt_dec (sh3idx + 1) tableSize ); intros.
+    contradict H15.
+    subst.
+    unfold sh1idx. unfold sh3idx.
+    unfold CIndex at 3.
+    case_eq (lt_dec 4 tableSize); intros.
+    unfold not; intros.
+    inversion H16.
+    unfold CIndex in H18.
+    case_eq(lt_dec 8 tableSize); intros; rewrite H17 in *.
+    inversion H18.
+    assert (tableSize > tableSizeLowerBound).
+    apply tableSizeBigEnough.
+    unfold tableSizeLowerBound in *.
+    omega.
+    assert (tableSize > tableSizeLowerBound).
+    apply tableSizeBigEnough.
+    unfold tableSizeLowerBound in *.
+    omega.
+    omega.
+    omega.
+          eapply weaken.
+    apply updatePartitionDescriptorPropagatedProperties2.
+    simpl.
+    intros.
+    assert(idxSH3 < tableSize - 1 /\ idxPD < tableSize - 1).
+    { unfold propagatedProperties in *.
+      unfold consistency in *.
+      assert (Hpde : partitionDescriptorEntry s) by intuition.
+      unfold partitionDescriptorEntry in *.
+      intuition.
+      subst.
+      assert (Hcur : In (currentPartition s) (getPartitions multiplexer s)).
+      unfold currentPartitionInPartitionsList in *. 
+      intuition.
+      apply Hpde with (currentPartition s) sh3idx   in Hcur.
+      intuition.
+      do 3 right;left ; trivial.
+      subst.
+      assert (Hcur : In (currentPartition s) (getPartitions multiplexer s)).
+      unfold currentPartitionInPartitionsList in *. 
+      intuition.
+      apply Hpde with (currentPartition s) PDidx   in Hcur.
+      intuition.
+      left;trivial. }
+    destruct H0.
+    destruct H0.  
+    intuition.
+    assert(Hnoteq : idxPD <> idxSH3).
+    { subst.
+      unfold PDidx. unfold sh3idx.
+      apply indexEqFalse ;
+      assert (tableSize > tableSizeLowerBound).
+      apply tableSizeBigEnough.
+      unfold tableSizeLowerBound in *.
+      omega.  apply tableSizeBigEnough.
+      unfold tableSizeLowerBound in *.
+      omega. apply tableSizeBigEnough. omega. }
+    now contradict Hnoteq.
+    subst.
+    unfold StateLib.Index.succ.
+    case_eq (lt_dec (PDidx + 1) tableSize); intros.
+    eexists.
+    split.
+    instantiate (1:= CIndex (PDidx + 1)).
+    f_equal.
+    unfold CIndex .
+    case_eq (lt_dec(PDidx + 1) tableSize); intros.
+    f_equal.
+    apply proof_irrelevance.
+    omega.
+    unfold CIndex.
+    case_eq(lt_dec (PDidx + 1) tableSize ); intros.
+    contradict H17.
+    subst.
+    unfold PDidx. unfold sh3idx.
+    unfold CIndex at 3.
+    case_eq (lt_dec 8 tableSize); intros.
+    unfold not; intros Hfalse.
+    inversion Hfalse.
+    unfold CIndex in H19.
+    case_eq(lt_dec 2 tableSize); intros; rewrite H18 in *.
+    inversion H19.
+    assert (tableSize > tableSizeLowerBound).
+    apply tableSizeBigEnough.
+    unfold tableSizeLowerBound in *.
+    omega.
+    assert (tableSize > tableSizeLowerBound).
+    apply tableSizeBigEnough.
+    unfold tableSizeLowerBound in *.
+    omega.
+    omega.
+    omega.
+    assert(Hnoteq : idxSH3 <> idxPD).
+    { subst.
+      unfold sh3idx. unfold PDidx.
+      apply indexEqFalse ;
+      assert (tableSize > tableSizeLowerBound).
+      apply tableSizeBigEnough.
+      unfold tableSizeLowerBound in *.
+      omega.  apply tableSizeBigEnough.
+      unfold tableSizeLowerBound in *.
+      omega. apply tableSizeBigEnough. omega. }
+    subst.
+    unfold StateLib.Index.succ.
+    case_eq (lt_dec (sh3idx + 1) tableSize); intros.
+    eexists.
+    split.
+    instantiate (1:= CIndex (sh3idx + 1)).
+    f_equal.
+    unfold CIndex .
+    case_eq (lt_dec(sh3idx + 1) tableSize); intros.
+    f_equal.
+    apply proof_irrelevance.
+    omega.
+    unfold CIndex.
+    case_eq(lt_dec (sh3idx + 1) tableSize ); intros.
+    contradict H17.
+    subst.
+    unfold sh3idx. unfold PDidx.
+    unfold CIndex at 3.
+    case_eq (lt_dec 2 tableSize); intros.
+    unfold not; intros Hfalse.
+    inversion Hfalse.
+    unfold CIndex in H19.
+    case_eq(lt_dec 8 tableSize); intros; rewrite H18 in *.
+    inversion H19.
+    assert (tableSize > tableSizeLowerBound).
+    apply tableSizeBigEnough.
+    unfold tableSizeLowerBound in *.
+    omega.
+    assert (tableSize > tableSizeLowerBound).
+    apply tableSizeBigEnough.
+    unfold tableSizeLowerBound in *.
+    omega.
+    omega.
+    omega.
+              eapply weaken.
+    apply updatePartitionDescriptorPropagatedProperties2.
+    simpl.
+    intros.
+    assert(idxSH3 < tableSize - 1 /\ idxPR < tableSize - 1).
+    { unfold propagatedProperties in *.
+      unfold consistency in *.
+      assert (Hpde : partitionDescriptorEntry s) by intuition.
+      unfold partitionDescriptorEntry in *.
+      intuition.
+      subst.
+      assert (Hcur : In (currentPartition s) (getPartitions multiplexer s)).
+      unfold currentPartitionInPartitionsList in *. 
+      intuition.
+      apply Hpde with (currentPartition s) sh3idx   in Hcur.
+      intuition.
+      do 3 right;left ; trivial.
+      subst.
+      assert (Hcur : In (currentPartition s) (getPartitions multiplexer s)).
+      unfold currentPartitionInPartitionsList in *. 
+      intuition.
+      apply Hpde with (currentPartition s) PRidx in Hcur.
+      intuition.
+      repeat right;trivial. }
+    destruct H0.
+    destruct H0.  
+    intuition.
+    assert(Hnoteq : idxPR <> idxSH3).
+    { subst.
+      unfold PRidx. unfold sh3idx.
+      apply indexEqFalse ;
+      assert (tableSize > tableSizeLowerBound).
+      apply tableSizeBigEnough.
+      unfold tableSizeLowerBound in *.
+      omega.  apply tableSizeBigEnough.
+      unfold tableSizeLowerBound in *.
+      omega. apply tableSizeBigEnough. omega. }
+    now contradict Hnoteq.
+    subst.
+    unfold StateLib.Index.succ.
+    case_eq (lt_dec (PRidx + 1) tableSize); intros.
+    eexists.
+    split.
+    instantiate (1:= CIndex (PRidx + 1)).
+    f_equal.
+    unfold CIndex .
+    case_eq (lt_dec(PRidx + 1) tableSize); intros.
+    f_equal.
+    apply proof_irrelevance.
+    omega.
+    unfold CIndex.
+    case_eq(lt_dec (PRidx + 1) tableSize ); intros.
+    contradict H19.
+    subst.
+    unfold PRidx. unfold sh3idx.
+    unfold CIndex at 3.
+    case_eq (lt_dec 8 tableSize); intros.
+    unfold not; intros Hfalse.
+    inversion Hfalse.
+    unfold CIndex in H21.
+    case_eq(lt_dec 0 tableSize); intros; rewrite H20 in *.
+    inversion H21.
+    assert (tableSize > tableSizeLowerBound).
+    apply tableSizeBigEnough.
+    unfold tableSizeLowerBound in *.
+    omega.
+    assert (tableSize > tableSizeLowerBound).
+    apply tableSizeBigEnough.
+    unfold tableSizeLowerBound in *.
+    omega.
+    omega.
+    omega.
+    assert(Hnoteq : idxSH3 <> idxPR).
+    { subst.
+      unfold sh3idx. unfold PRidx.
+      apply indexEqFalse ;
+      assert (tableSize > tableSizeLowerBound).
+      apply tableSizeBigEnough.
+      unfold tableSizeLowerBound in *.
+      omega.  apply tableSizeBigEnough.
+      unfold tableSizeLowerBound in *.
+      omega. apply tableSizeBigEnough. omega. }
+    subst.
+    unfold StateLib.Index.succ.
+    case_eq (lt_dec (sh3idx + 1) tableSize); intros.
+    eexists.
+    split.
+    instantiate (1:= CIndex (sh3idx + 1)).
+    f_equal.
+    unfold CIndex .
+    case_eq (lt_dec(sh3idx + 1) tableSize); intros.
+    f_equal.
+    apply proof_irrelevance.
+    omega.
+    unfold CIndex.
+    case_eq(lt_dec (sh3idx + 1) tableSize ); intros.
+    contradict H19.
+    subst.
+    unfold sh3idx. unfold PRidx.
+    unfold CIndex at 3.
+    case_eq (lt_dec 0 tableSize); intros.
+    unfold not; intros Hfalse.
+    inversion Hfalse.
+    unfold CIndex in H21.
+    case_eq(lt_dec 8 tableSize); intros; rewrite H20 in *.
+    inversion H21.
+    assert (tableSize > tableSizeLowerBound).
+    apply tableSizeBigEnough.
+    unfold tableSizeLowerBound in *.
+    omega.
+    assert (tableSize > tableSizeLowerBound).
+    apply tableSizeBigEnough.
+    unfold tableSizeLowerBound in *.
+    omega.
+    omega.
+    omega.
+simpl.
+intros [].
+      (** updatePartitionDescriptor : add the config list into the partition descriptor *)
+    eapply WP.bindRev.
+    eapply preAndPost.
+    eapply preAndPost.
+    eapply preAndPost.
+    eapply preAndPost.
+    eapply preAndPost.    
+    eapply WP.weaken.
+    eapply conjPrePost.
+    eapply updatePartitionDescriptorPropagatedProperties.
+    intuition.
+    eapply updatePartitionDescriptorNewProperty.
+    simpl.
+    intros.
+    repeat rewrite and_assoc in H0.
+    repeat rewrite and_assoc.
+    destruct H0.
+    destruct H1.
+    split.
+    eapply H0.
+    instantiate(1:= ptRefChild).
+    instantiate(1:= descChild).
+    instantiate(1:=  idxRefChild).
+    instantiate(1:=  idxPPR).
+    instantiate(1:= idxSH3).
+    instantiate(1:= idxSH2).
+    instantiate(1:=  idxSH1).
+    instantiate(1:=  idxPD).
+    instantiate(1:=  idxPR).
+       instantiate(1:=  nullv).
+    instantiate(1:=  zero).
+    unfold propagatedProperties in *.
+    intuition.
+    assert(Hget1 :forall idx : index,
+                  StateLib.getIndexOfAddr descChild fstLevel = idx ->
+                  isPE ptRefChild idx s /\ 
+                  getTableAddrRoot ptRefChild PDidx currentPart descChild s) by intuition.
+    intuition.
+    apply Hget1; trivial.
+    assert(Hget1 :forall idx : index,
+                  StateLib.getIndexOfAddr descChild fstLevel = idx ->
+                  isPE ptRefChild idx s /\ 
+                  getTableAddrRoot ptRefChild PDidx currentPart descChild s) by intuition.
+    intuition.
+    assert(Hidx : StateLib.getIndexOfAddr descChild fstLevel = idxRefChild) by trivial.
+    generalize (Hget1 idxRefChild Hidx);clear Hget1 ; intros (_ & Hhet1).
+    subst. assumption.
+    subst. assumption.
+    unfold propagatedProperties in *.
+    unfold consistency in *.
+    intuition.
+    subst.
+    assert (Hpde : partitionDescriptorEntry s) by trivial.
+    unfold  partitionDescriptorEntry in *.
+    assert (Hcur : In (currentPartition s) (getPartitions multiplexer s)).
+    unfold currentPartitionInPartitionsList in *.
+    intuition.
+    apply Hpde with (currentPartition s)  PPRidx in Hcur.
+    subst.
+    intuition.
+    do 4 right;left; trivial.
+    unfold propagatedProperties in *.
+    unfold consistency in *.
+    intuition.
+    subst.
+    assert (Hpde : partitionDescriptorEntry s) by trivial.
+    unfold  partitionDescriptorEntry in *.
+    assert (Hcur : In (currentPartition s) (getPartitions multiplexer s)).
+    unfold currentPartitionInPartitionsList in *.
+    intuition.
+    apply Hpde with (currentPartition s) PPRidx  in Hcur.
+    intuition.
+    do 4 right; left; trivial.
+    simpl.
+    eapply weaken.
+    apply updatePartitionDescriptorPropagatedProperties2.
+    simpl.
+    intros.
+    assert(idxPPR < tableSize - 1 /\ idxSH3 < tableSize - 1).
+    { unfold propagatedProperties in *.
+      unfold consistency in *.
+      assert (Hpde : partitionDescriptorEntry s) by intuition.
+      unfold partitionDescriptorEntry in *.
+      intuition.
+      subst.
+      assert (Hcur : In (currentPartition s) (getPartitions multiplexer s)).
+      unfold currentPartitionInPartitionsList in *. 
+      intuition.
+      apply Hpde with (currentPartition s) PPRidx   in Hcur.
+      intuition.
+      do 4 right ;left; trivial.
+      subst.
+      assert (Hcur : In (currentPartition s) (getPartitions multiplexer s)).
+      unfold currentPartitionInPartitionsList in *. 
+      intuition.
+      apply Hpde with (currentPartition s) sh3idx   in Hcur.
+      intuition.
+      do 3 right;left;trivial. }
+    destruct H0.
+    destruct H0.  
+    intuition.
+    assert(Hnoteq : idxPPR <> idxSH3).
+    { subst.
+      unfold PPRidx. unfold sh3idx.
+      apply indexEqFalse ;
+      assert (tableSize > tableSizeLowerBound).
+      apply tableSizeBigEnough.
+      unfold tableSizeLowerBound in *.
+      omega.  apply tableSizeBigEnough.
+      unfold tableSizeLowerBound in *.
+      omega. apply tableSizeBigEnough. omega. }
+    now contradict Hnoteq.
+    subst.
+    unfold StateLib.Index.succ.
+    case_eq (lt_dec (sh3idx + 1) tableSize); intros.
+    eexists.
+    split.
+    instantiate (1:= CIndex (sh3idx + 1)).
+    f_equal.
+    unfold CIndex .
+    case_eq (lt_dec(sh3idx + 1) tableSize); intros.
+    f_equal.
+    apply proof_irrelevance.
+    omega.
+    unfold CIndex.
+    case_eq(lt_dec (sh3idx + 1) tableSize ); intros.
+    contradict H13.
+    subst.
+    unfold sh3idx. unfold PPRidx.
+    unfold CIndex at 3.
+    case_eq (lt_dec 10 tableSize); intros.
+    unfold not; intros.
+    inversion H14.
+    unfold CIndex in H16.
+    case_eq(lt_dec 8 tableSize); intros; rewrite H15 in *.
+    inversion H16.
+    assert (tableSize > tableSizeLowerBound).
+    apply tableSizeBigEnough.
+    unfold tableSizeLowerBound in *.
+    omega.
+    assert (tableSize > tableSizeLowerBound).
+    apply tableSizeBigEnough.
+    unfold tableSizeLowerBound in *.
+    omega.
+    omega.
+    omega.
+    assert(Hnoteq : idxSH3 <> idxPPR).
+    { subst.
+      unfold sh3idx. unfold PPRidx.
+      apply indexEqFalse ;
+      assert (tableSize > tableSizeLowerBound).
+      apply tableSizeBigEnough.
+      unfold tableSizeLowerBound in *.
+      omega.  apply tableSizeBigEnough.
+      unfold tableSizeLowerBound in *.
+      omega. apply tableSizeBigEnough. omega. }
+    subst.
+    unfold StateLib.Index.succ.
+    case_eq (lt_dec (PPRidx + 1) tableSize); intros.
+    eexists.
+    split.
+    instantiate (1:= CIndex (PPRidx + 1)).
+    f_equal.
+    unfold CIndex .
+    case_eq (lt_dec(PPRidx + 1) tableSize); intros.
+    f_equal.
+    apply proof_irrelevance.
+    omega.
+    unfold CIndex.
+    case_eq(lt_dec (PPRidx + 1) tableSize ); intros.
+    contradict H13.
+    subst.
+    unfold PPRidx. unfold sh3idx.
+    unfold CIndex at 3.
+    case_eq (lt_dec 8 tableSize); intros.
+    unfold not; intros.
+    inversion H14.
+    unfold CIndex in H16.
+    case_eq(lt_dec 10 tableSize); intros; rewrite H15 in *.
+    inversion H16.
+    assert (tableSize > tableSizeLowerBound).
+    apply tableSizeBigEnough.
+    unfold tableSizeLowerBound in *.
+    omega.
+    assert (tableSize > tableSizeLowerBound).
+    apply tableSizeBigEnough.
+    unfold tableSizeLowerBound in *.
+    omega.
+    omega.
+    omega. 
+      eapply weaken.
+    apply updatePartitionDescriptorPropagatedProperties2.
+    simpl.
+    intros.
+    assert(idxPPR < tableSize - 1 /\ idxSH2 < tableSize - 1).
+    { unfold propagatedProperties in *.
+      unfold consistency in *.
+      assert (Hpde : partitionDescriptorEntry s) by intuition.
+      unfold partitionDescriptorEntry in *.
+      intuition.
+      subst.
+      assert (Hcur : In (currentPartition s) (getPartitions multiplexer s)).
+      unfold currentPartitionInPartitionsList in *. 
+      intuition.
+      apply Hpde with (currentPartition s) PPRidx   in Hcur.
+      intuition.
+      do 4 right;left ; trivial.
+      subst.
+      assert (Hcur : In (currentPartition s) (getPartitions multiplexer s)).
+      unfold currentPartitionInPartitionsList in *. 
+      intuition.
+      apply Hpde with (currentPartition s) sh2idx   in Hcur.
+      intuition.
+      do 2 right;left;trivial. }
+    destruct H0.
+    destruct H0.  
+    intuition.
+    assert(Hnoteq : idxSH2 <> idxPPR).
+    { subst.
+      unfold sh1idx. unfold sh3idx.
+      apply indexEqFalse ;
+      assert (tableSize > tableSizeLowerBound).
+      apply tableSizeBigEnough.
+      unfold tableSizeLowerBound in *.
+      omega.  apply tableSizeBigEnough.
+      unfold tableSizeLowerBound in *.
+      omega. apply tableSizeBigEnough. omega. }
+    now contradict Hnoteq.
+    subst.
+    unfold StateLib.Index.succ.
+    case_eq (lt_dec (sh2idx + 1) tableSize); intros.
+    eexists.
+    split.
+    instantiate (1:= CIndex (sh2idx + 1)).
+    f_equal.
+    unfold CIndex .
+    case_eq (lt_dec(sh2idx + 1) tableSize); intros.
+    f_equal.
+    apply proof_irrelevance.
+    omega.
+    unfold CIndex.
+    case_eq(lt_dec (sh2idx + 1) tableSize ); intros.
+    contradict H15.
+    subst.
+    unfold sh2idx. unfold PPRidx.
+    unfold CIndex at 3.
+    case_eq (lt_dec 10 tableSize); intros.
+    unfold not; intros.
+    inversion H16.
+    unfold CIndex in H18.
+    case_eq(lt_dec 6 tableSize); intros; rewrite H17 in *.
+    inversion H18.
+    assert (tableSize > tableSizeLowerBound).
+    apply tableSizeBigEnough.
+    unfold tableSizeLowerBound in *.
+    omega.
+    assert (tableSize > tableSizeLowerBound).
+    apply tableSizeBigEnough.
+    unfold tableSizeLowerBound in *.
+    omega.
+    omega.
+    omega.
+    assert(Hnoteq : idxPPR <> idxSH2).
+    { subst.
+      unfold PPRidx. unfold sh2idx.
+      apply indexEqFalse ;
+      assert (tableSize > tableSizeLowerBound).
+      apply tableSizeBigEnough.
+      unfold tableSizeLowerBound in *.
+      omega.  apply tableSizeBigEnough.
+      unfold tableSizeLowerBound in *.
+      omega. apply tableSizeBigEnough. omega. }
+    subst.
+    unfold StateLib.Index.succ.
+    case_eq (lt_dec (PPRidx + 1) tableSize); intros.
+    eexists.
+    split.
+    instantiate (1:= CIndex (PPRidx + 1)).
+    f_equal.
+    unfold CIndex .
+    case_eq (lt_dec(PPRidx + 1) tableSize); intros.
+    f_equal.
+    apply proof_irrelevance.
+    omega.
+    unfold CIndex.
+    case_eq(lt_dec (PPRidx + 1) tableSize ); intros.
+    contradict H15.
+    subst.
+    unfold sh2idx. unfold PPRidx.
+    unfold CIndex at 3.
+    case_eq (lt_dec 6 tableSize); intros.
+    unfold not; intros.
+    inversion H16.
+    unfold CIndex in H18.
+    case_eq(lt_dec 10 tableSize); intros; rewrite H17 in *.
+    inversion H18.
+    assert (tableSize > tableSizeLowerBound).
+    apply tableSizeBigEnough.
+    unfold tableSizeLowerBound in *.
+    omega.
+    assert (tableSize > tableSizeLowerBound).
+    apply tableSizeBigEnough.
+    unfold tableSizeLowerBound in *.
+    omega.
+    omega.
+    omega.
+          eapply weaken.
+    apply updatePartitionDescriptorPropagatedProperties2.
+    simpl.
+    intros.
+    assert(idxPPR < tableSize - 1 /\ idxSH1 < tableSize - 1).
+    { unfold propagatedProperties in *.
+      unfold consistency in *.
+      assert (Hpde : partitionDescriptorEntry s) by intuition.
+      unfold partitionDescriptorEntry in *.
+      intuition.
+      subst.
+      assert (Hcur : In (currentPartition s) (getPartitions multiplexer s)).
+      unfold currentPartitionInPartitionsList in *. 
+      intuition.
+      apply Hpde with (currentPartition s) PPRidx   in Hcur.
+      intuition.
+      do 4 right;left ; trivial.
+      subst.
+      assert (Hcur : In (currentPartition s) (getPartitions multiplexer s)).
+      unfold currentPartitionInPartitionsList in *. 
+      intuition.
+      apply Hpde with (currentPartition s) sh1idx   in Hcur.
+      intuition.
+      right;left;trivial. }
+    destruct H0.
+    destruct H0.  
+    intuition.
+    assert(Hnoteq : idxSH1 <> idxPPR).
+    { subst.
+      unfold sh1idx. unfold PPRidx.
+      apply indexEqFalse ;
+      assert (tableSize > tableSizeLowerBound).
+      apply tableSizeBigEnough.
+      unfold tableSizeLowerBound in *.
+      omega.  apply tableSizeBigEnough.
+      unfold tableSizeLowerBound in *.
+      omega. apply tableSizeBigEnough. omega. }
+    now contradict Hnoteq.
+    subst.
+    unfold StateLib.Index.succ.
+    case_eq (lt_dec (sh1idx + 1) tableSize); intros.
+    eexists.
+    split.
+    instantiate (1:= CIndex (sh1idx + 1)).
+    f_equal.
+    unfold CIndex .
+    case_eq (lt_dec(sh1idx + 1) tableSize); intros.
+    f_equal.
+    apply proof_irrelevance.
+    omega.
+    unfold CIndex.
+    case_eq(lt_dec (sh1idx + 1) tableSize ); intros.
+    contradict H17.
+    subst.
+    unfold sh1idx. unfold PPRidx.
+    unfold CIndex at 3.
+    case_eq (lt_dec 10 tableSize); intros.
+    unfold not; intros Hfalse.
+    inversion Hfalse.
+    unfold CIndex in H19.
+    case_eq(lt_dec 4 tableSize); intros; rewrite H18 in *.
+    inversion H19.
+    assert (tableSize > tableSizeLowerBound).
+    apply tableSizeBigEnough.
+    unfold tableSizeLowerBound in *.
+    omega.
+    assert (tableSize > tableSizeLowerBound).
+    apply tableSizeBigEnough.
+    unfold tableSizeLowerBound in *.
+    omega.
+    omega.
+    omega.
+    assert(Hnoteq : idxPPR <> idxSH1).
+    { subst.
+      unfold PPRidx. unfold sh1idx.
+      apply indexEqFalse ;
+      assert (tableSize > tableSizeLowerBound).
+      apply tableSizeBigEnough.
+      unfold tableSizeLowerBound in *.
+      omega.  apply tableSizeBigEnough.
+      unfold tableSizeLowerBound in *.
+      omega. apply tableSizeBigEnough. omega. }
+    subst.
+    unfold StateLib.Index.succ.
+    case_eq (lt_dec (PPRidx + 1) tableSize); intros.
+    eexists.
+    split.
+    instantiate (1:= CIndex (PPRidx + 1)).
+    f_equal.
+    unfold CIndex .
+    case_eq (lt_dec(PPRidx + 1) tableSize); intros.
+    f_equal.
+    apply proof_irrelevance.
+    omega.
+    unfold CIndex.
+    case_eq(lt_dec (PPRidx + 1) tableSize ); intros.
+    contradict H17.
+    subst.
+    unfold PPRidx. unfold sh1idx.
+    unfold CIndex at 3.
+    case_eq (lt_dec 4 tableSize); intros.
+    unfold not; intros Hfalse.
+    inversion Hfalse.
+    unfold CIndex in H19.
+    case_eq(lt_dec 10 tableSize); intros; rewrite H18 in *.
+    inversion H19.
+    assert (tableSize > tableSizeLowerBound).
+    apply tableSizeBigEnough.
+    unfold tableSizeLowerBound in *.
+    omega.
+    assert (tableSize > tableSizeLowerBound).
+    apply tableSizeBigEnough.
+    unfold tableSizeLowerBound in *.
+    omega.
+    omega.
+    omega.
+              eapply weaken.
+    apply updatePartitionDescriptorPropagatedProperties2.
+    simpl.
+    intros.
+    assert(idxPPR < tableSize - 1 /\ idxPD < tableSize - 1).
+    { unfold propagatedProperties in *.
+      unfold consistency in *.
+      assert (Hpde : partitionDescriptorEntry s) by intuition.
+      unfold partitionDescriptorEntry in *.
+      intuition.
+      subst.
+      assert (Hcur : In (currentPartition s) (getPartitions multiplexer s)).
+      unfold currentPartitionInPartitionsList in *. 
+      intuition.
+      apply Hpde with (currentPartition s) PPRidx   in Hcur.
+      intuition.
+      do 4 right;left ; trivial.
+      subst.
+      assert (Hcur : In (currentPartition s) (getPartitions multiplexer s)).
+      unfold currentPartitionInPartitionsList in *. 
+      intuition.
+      apply Hpde with (currentPartition s) PDidx in Hcur.
+      intuition.
+      left;trivial. }
+    destruct H0.
+    destruct H0.  
+    intuition.
+    assert(Hnoteq : idxPD <> idxPPR).
+    { subst.
+      unfold PRidx. unfold sh3idx.
+      apply indexEqFalse ;
+      assert (tableSize > tableSizeLowerBound).
+      apply tableSizeBigEnough.
+      unfold tableSizeLowerBound in *.
+      omega.  apply tableSizeBigEnough.
+      unfold tableSizeLowerBound in *.
+      omega. apply tableSizeBigEnough. omega. }
+    now contradict Hnoteq.
+    subst.
+    unfold StateLib.Index.succ.
+    case_eq (lt_dec (PDidx + 1) tableSize); intros.
+    eexists.
+    split.
+    instantiate (1:= CIndex (PDidx + 1)).
+    f_equal.
+    unfold CIndex .
+    case_eq (lt_dec(PDidx + 1) tableSize); intros.
+    f_equal.
+    apply proof_irrelevance.
+    omega.
+    unfold CIndex.
+    case_eq(lt_dec (PDidx + 1) tableSize ); intros.
+    contradict H19.
+    subst.
+    unfold PDidx. unfold PPRidx.
+    unfold CIndex at 3.
+    case_eq (lt_dec 10 tableSize); intros.
+    unfold not; intros Hfalse.
+    inversion Hfalse.
+    unfold CIndex in H21.
+    case_eq(lt_dec 2 tableSize); intros; rewrite H20 in *.
+    inversion H21.
+    assert (tableSize > tableSizeLowerBound).
+    apply tableSizeBigEnough.
+    unfold tableSizeLowerBound in *.
+    omega.
+    assert (tableSize > tableSizeLowerBound).
+    apply tableSizeBigEnough.
+    unfold tableSizeLowerBound in *.
+    omega.
+    omega.
+    omega.
+    assert(Hnoteq : idxPPR <> idxPD).
+    { subst.
+      unfold PPRidx. unfold PDidx.
+      apply indexEqFalse ;
+      assert (tableSize > tableSizeLowerBound).
+      apply tableSizeBigEnough.
+      unfold tableSizeLowerBound in *.
+      omega.  apply tableSizeBigEnough.
+      unfold tableSizeLowerBound in *.
+      omega. apply tableSizeBigEnough. omega. }
+    subst.
+    unfold StateLib.Index.succ.
+    case_eq (lt_dec (PPRidx + 1) tableSize); intros.
+    eexists.
+    split.
+    instantiate (1:= CIndex (PPRidx + 1)).
+    f_equal.
+    unfold CIndex .
+    case_eq (lt_dec(PPRidx + 1) tableSize); intros.
+    f_equal.
+    apply proof_irrelevance.
+    omega.
+    unfold CIndex.
+    case_eq(lt_dec (PPRidx + 1) tableSize ); intros.
+    contradict H19.
+    subst.
+    unfold PPRidx. unfold PDidx.
+    unfold CIndex at 3.
+    case_eq (lt_dec 2 tableSize); intros.
+    unfold not; intros Hfalse.
+    inversion Hfalse.
+    unfold CIndex in H21.
+    case_eq(lt_dec 10 tableSize); intros; rewrite H20 in *.
+    inversion H21.
+    assert (tableSize > tableSizeLowerBound).
+    apply tableSizeBigEnough.
+    unfold tableSizeLowerBound in *.
+    omega.
+    assert (tableSize > tableSizeLowerBound).
+    apply tableSizeBigEnough.
+    unfold tableSizeLowerBound in *.
+    omega.
+    omega.
+    omega.
+    eapply weaken.
+    apply updatePartitionDescriptorPropagatedProperties2.
+    simpl.
+    intros.
+    assert(idxPPR < tableSize - 1 /\ idxPR < tableSize - 1).
+    { unfold propagatedProperties in *.
+      unfold consistency in *.
+      assert (Hpde : partitionDescriptorEntry s) by intuition.
+      unfold partitionDescriptorEntry in *.
+      intuition.
+      subst.
+      assert (Hcur : In (currentPartition s) (getPartitions multiplexer s)).
+      unfold currentPartitionInPartitionsList in *. 
+      intuition.
+      apply Hpde with (currentPartition s) PPRidx   in Hcur.
+      intuition.
+      do 4 right;left ; trivial.
+      subst.
+      assert (Hcur : In (currentPartition s) (getPartitions multiplexer s)).
+      unfold currentPartitionInPartitionsList in *. 
+      intuition.
+      apply Hpde with (currentPartition s) PRidx in Hcur.
+      intuition.
+      repeat right;trivial. }
+    destruct H0.
+    destruct H0.  
+    intuition.
+    assert(Hnoteq : idxPR <> idxPPR).
+    { subst.
+      unfold PRidx. unfold PPRidx.
+      apply indexEqFalse ;
+      assert (tableSize > tableSizeLowerBound).
+      apply tableSizeBigEnough.
+      unfold tableSizeLowerBound in *.
+      omega.  apply tableSizeBigEnough.
+      unfold tableSizeLowerBound in *.
+      omega. apply tableSizeBigEnough. omega. }
+    now contradict Hnoteq.
+    subst.
+    unfold StateLib.Index.succ.
+    case_eq (lt_dec (PRidx + 1) tableSize); intros.
+    eexists.
+    split.
+    instantiate (1:= CIndex (PRidx + 1)).
+    f_equal.
+    unfold CIndex .
+    case_eq (lt_dec(PRidx + 1) tableSize); intros.
+    f_equal.
+    apply proof_irrelevance.
+    omega.
+    unfold CIndex.
+    case_eq(lt_dec (PRidx + 1) tableSize ); intros.
+    contradict H21.
+    subst.
+    unfold PRidx. unfold PPRidx.
+    unfold CIndex at 3.
+    case_eq (lt_dec 10 tableSize); intros.
+    unfold not; intros Hfalse.
+    inversion Hfalse.
+    unfold CIndex in H23.
+    case_eq(lt_dec 0 tableSize); intros; rewrite H22 in *.
+    inversion H23.
+    assert (tableSize > tableSizeLowerBound).
+    apply tableSizeBigEnough.
+    unfold tableSizeLowerBound in *.
+    omega.
+    assert (tableSize > tableSizeLowerBound).
+    apply tableSizeBigEnough.
+    unfold tableSizeLowerBound in *.
+    omega.
+    omega.
+    omega.
+    assert(Hnoteq : idxPPR <> idxPR).
+    { subst.
+      unfold PPRidx. unfold PRidx.
+      apply indexEqFalse ;
+      assert (tableSize > tableSizeLowerBound).
+      apply tableSizeBigEnough.
+      unfold tableSizeLowerBound in *.
+      omega.  apply tableSizeBigEnough.
+      unfold tableSizeLowerBound in *.
+      omega. apply tableSizeBigEnough. omega. }
+    subst.
+    unfold StateLib.Index.succ.
+    case_eq (lt_dec (PPRidx + 1) tableSize); intros.
+    eexists.
+    split.
+    instantiate (1:= CIndex (PPRidx + 1)).
+    f_equal.
+    unfold CIndex .
+    case_eq (lt_dec(PPRidx + 1) tableSize); intros.
+    f_equal.
+    apply proof_irrelevance.
+    omega.
+    unfold CIndex.
+    case_eq(lt_dec (PPRidx + 1) tableSize ); intros.
+    contradict H21.
+    subst.
+    unfold PPRidx. unfold PRidx.
+    unfold CIndex at 3.
+    case_eq (lt_dec 0 tableSize); intros.
+    unfold not; intros Hfalse.
+    inversion Hfalse.
+    unfold CIndex in H23.
+    case_eq(lt_dec 10 tableSize); intros; rewrite H22 in *.
+    inversion H23.
+    assert (tableSize > tableSizeLowerBound).
+    apply tableSizeBigEnough.
+    unfold tableSizeLowerBound in *.
+    omega.
+    assert (tableSize > tableSizeLowerBound).
+    apply tableSizeBigEnough.
+    unfold tableSizeLowerBound in *.
+    omega.
+    omega.
+    omega.
+    simpl.
+    intros []. 
+      
 (** TODO : To be finished *)
     admit.
  - 

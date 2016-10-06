@@ -233,6 +233,17 @@ intros;
 apply H; intuition.
 Qed.
 
+Lemma permutHT1 :
+forall (A : Type) (P1 P2 P3 : state -> Prop) (R  : A -> state -> Prop) (m : LLI A),
+{{ fun s => P1 s /\ P2 s /\ P3 s}} m {{ R}} <-> {{ fun s =>P3 s /\  P1 s /\ P2 s  /\ P3 s}} m {{ R}}.
+Proof.
+      unfold hoareTriple.
+intros.
+split;
+intros;
+apply H; intuition.
+Qed.
+
 Lemma preAnd:
  forall (A : Type) (P1 Q : state -> Prop) (P2  : A -> state -> Prop) (m : LLI A),
 {{P1}} m {{P2}} -> {{fun s => P1 s /\ Q s}} m {{P2}}.
