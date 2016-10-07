@@ -456,11 +456,11 @@ Qed.
 
 (** The [getChildren] function Returns all children of a given partition *)
 Definition getChildren (partition : page) s := 
-nodup eqPageDec (let vaList := getAllVAddr in 
+let vaList := getAllVAddr in 
 match getNbLevel, getPd partition s.(memory) with 
 |Some l1,Some pd => getMappedPagesAux pd (getPdsVAddr partition l1 vaList s) s
 |_, _ => []
-end).
+end.
 
 
 (** The [getPartitionsAux] function returns all pages marked as descriptor partition *)

@@ -230,7 +230,6 @@ destruct (StateLib.getNbLevel ); trivial.
 simpl.
 destruct (StateLib.getPd parent (memory s)); trivial.
 rewrite <- getPdsVAddrUpdateCurrentPartition with phyVA parent l getAllVAddr s .
-f_equal.
 apply getMappedPagesAuxUpdateCurrentPartition .
 Qed.
 
@@ -338,7 +337,6 @@ assert (List.In descChild  (getPdsVAddr partition nbL getAllVAddr s)).
 apply getPdsVAddrCheckChild; trivial.
 unfold getTableAddrRoot in *. 
 unfold getMappedPagesAux.
-rewrite nodup_In.
 rewrite filterOptionInIff; trivial. 
 unfold getMappedPagesOption.
 apply in_map_iff. 

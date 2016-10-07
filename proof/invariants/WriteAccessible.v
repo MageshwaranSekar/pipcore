@@ -770,7 +770,6 @@ assert (getPdsVAddr partition l getAllVAddr s' =
             getPdsVAddr partition l getAllVAddr s) as HgetPdsVa.
     { apply getPdsVAddrUpdateUserFlag;trivial. }
 rewrite HgetPdsVa.
-f_equal.
 apply getMappedPagesAuxUpdateUserFlag;trivial.
 Qed.
 
