@@ -37,7 +37,7 @@ Require Import Model.ADT Model.Hardware Core.Services Isolation
 Consistency Invariants WeakestPreconditions Model.Lib StateLib
 Model.MAL InitConfigPagesList InitPEntryTable DependentTypeLemmas  GetTableAddr 
 WriteAccessible WriteAccessibleRec UpdateMappedPageContent InternalLemmas  Lib
-UpdatePartitionDescriptor PropagatedProperties.
+UpdatePartitionDescriptor PropagatedProperties UpdateShadow1Structure.
  Require Import Omega Bool  Coq.Logic.ProofIrrelevance List.
 
 Lemma createPartition (descChild pdChild shadow1 shadow2 list : vaddr) :
@@ -7224,8 +7224,44 @@ intros [].
     omega.
     simpl.
     intros []. 
-      
+(**  writeVirEntry **)
+    eapply bindRev.
+    eapply weaken.
+    eapply WP.writeVirEntry.
+    simpl; intros.
+    pattern s in H0.
+    match type of H0 with 
+    |?HT s => instantiate (1 := fun tt s => HT s)
+    end.
+    simpl in *.
+    repeat rewrite and_assoc .
+    split.
+
+  (** propagatedProperties **)
+    unfold propagatedProperties in *.
+    (** partitionsIsolation **)
+    assert (Hiso : partitionsIsolation s) by intuition.
+    split.
+    assert(Hget : forall idx : index,
+                  StateLib.getIndexOfAddr pdChild fstLevel = idx ->
+                  isVE ptPDChildSh1 idx s /\ 
+                  getTableAddrRoot ptPDChildSh1 sh1idx currentPart pdChild s)
+      by intuition.
+    assert (Hve :isVE ptPDChildSh1 idxPDChild s).
+    apply Hget.
+    intuition.
+    unfold isVE in Hve.
+    case_eq( lookup ptPDChildSh1 idxPDChild (memory s) beqPage beqIndex);
+    intros; rewrite H1 in *; try now contradict Hve.
+    case_eq v ; intros;rewrite H2 in *; try now contradict Hve.
+    apply partitionsIsolationUpdtateSh1Structure with v0; trivial.
+    subst.
+    intuition.
+    admit. (** Need new consistency property to prove the following goal:
+     StateLib.readPDflag ptPDChildSh1 idxPDChild (memory s) = Some false *)
 (** TODO : To be finished *)
+    admit.
+    admit.
     admit.
  - 
     intros HNotlegit. 

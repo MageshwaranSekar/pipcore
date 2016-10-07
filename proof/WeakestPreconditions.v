@@ -391,6 +391,18 @@ intros. simpl.
 assumption.  
 Qed.
 
+Lemma writeVirEntry  table idx (addr : vaddr)  (P : unit -> state -> Prop) :
+{{fun  s => P tt {|
+  currentPartition := currentPartition s;
+  memory := add table idx (VE {| pd := false; va := addr |} ) (memory s) beqPage beqIndex |} }} writeVirEntry table idx addr  {{P}}.
+Proof.
+unfold writeVirEntry.
+eapply weaken.
+eapply modify .
+intros. simpl.
+assumption.  
+Qed.
+
 Lemma writePhysical table idx (addr : page) (P : unit -> state -> Prop) :
 {{fun  s => P tt {|
   currentPartition := currentPartition s;
