@@ -311,8 +311,8 @@ match getFstShadow partition s.(memory)  with
     |Some tbl => if tbl =? defaultPage 
                     then false 
                     else match readPDflag tbl idxVA s.(memory) with 
-                          |Some flag => flag
-                          |None => false
+                          |Some true => true
+                          |_ => false
                           end
     |None => false 
     end

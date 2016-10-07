@@ -251,35 +251,37 @@ case_eq isNullptSh1; intros HisNullptSh1.
   trivial. trivial.   
   }
 (** readPDflag **) 
-  { eapply strengthen.
-    + eapply weaken.
-      - eapply Invariants.readPDflag.
+  {(*  eapply strengthen.
+    + *) eapply weaken.
+      - eapply WP.readPDflag.
       - intros; simpl.
-        split.
-        pattern s in H.
-        eapply H.
-        try repeat rewrite and_assoc in H.
-        destruct H as (Hp & Hcons & Hparent &
-        Hnbl & Hroot & Hidx & [(Hisroot & Hfalse) | Htrue ] & Hnotnull).
-        apply beq_nat_false in Hnotnull.
-        rewrite Hfalse in Hnotnull.
-        now contradict Hnotnull.
-        destruct Htrue as (Htrue & Hve).
-        apply Hve in Hidx; assumption.
-    +  simpl;intros.
-        split.
-        intuition.
+      intuition.
+      subst.
+      apply beq_nat_false in H1.
+      now contradict H1.
+      subst.
+      assert(isVE ptsh1 (getIndexOfAddr va fstLevel) s ).
+      apply H9; trivial.
+      unfold isVE in H3.
+      case_eq(lookup ptsh1 (getIndexOfAddr va fstLevel) (memory s) beqPage beqIndex);
+      intros; rewrite H5 in *;
+        
+      try now contradict H3.
+      case_eq v; intros; rewrite H8 in *; try now contradict H3.
+      subst.
+      exists v0;split; trivial.
+      intuition.
+
         unfold checkChild.
-        assert (nextEntryIsPP parent sh1idx sh1 s) as Hsh1 by intuition.
+        assert (nextEntryIsPP (currentPartition s) sh1idx sh1 s) as Hsh1 by intuition.
         unfold nextEntryIsPP in Hsh1.
         unfold getFstShadow.
         unfold readPhysical.
         case_eq (Index.succ sh1idx); intros.
-        rewrite H0 in Hsh1.
-        assert (parent = currentPartition s) as Hparent by intuition.
+        rewrite H8 in Hsh1.
         subst.
         case_eq (lookup (currentPartition s) i (memory s) beqPage beqIndex); intros.  
-        rewrite H1 in Hsh1.
+        rewrite H10 in Hsh1.
         case_eq v ; intros; trivial; try rewrite H2 in Hsh1;
         subst; try
         now contradict Hsh1.
@@ -288,14 +290,12 @@ case_eq isNullptSh1; intros HisNullptSh1.
         ptsh1 <> defaultPage /\
         (forall idx : index, getIndexOfAddr va fstLevel = idx -> isVE ptsh1 idx s))).
         intuition.
-        destruct H2 as [(Hrootstruc & Hdef) |  Hx].
-        destruct H. destruct H.
+        destruct H11 as [(Hrootstruc & Hdef) |  Hx].
         subst.
-        contradict H3.
-        apply Bool.not_false_iff_true.
-        symmetry. apply beq_nat_refl.
+        now contradict H6.
         assert ( getTableAddrRoot ptsh1 sh1idx (currentPartition s) va s) as Hrootstruc by intuition.
         unfold getTableAddrRoot in Hrootstruc.
+        subst.
         assert (nextEntryIsPP (currentPartition s) sh1idx p s) as Hisroot by intuition.
         destruct Hrootstruc as (Htmp & Hrootstruc).
         apply Hrootstruc in Hisroot.
@@ -307,37 +307,36 @@ case_eq isNullptSh1; intros HisNullptSh1.
         clear Hnbl.
         unfold getNbLevel in Hlvl.
         case_eq(gt_dec nbLevel 0); intros.
-        rewrite H2 in Hlvl.
+        rewrite H11 in Hlvl.
         inversion Hlvl.
-        rewrite <- H4.
+        rewrite <- H13.
         assert (getIndirection p va nbL (nbLevel - 1) s = Some ptsh1) as Hstopgt.
         apply getIndirectionStopLevelGT2 with (nbL + 1); try omega.
-        rewrite H4.
+        rewrite H13.
         simpl in *. trivial.
         assumption.
         rewrite Hstopgt.
         destruct H.
-        destruct H.
-        assert (ptsh1 =? defaultPage = false).
-        apply Nat.eqb_neq.
-        apply beq_nat_false in H5.
-        omega. 
-        rewrite H6.
-        subst.
-        assert (getIndexOfAddr va fstLevel = lastidx) as Hidx by intuition.
-        clear Hlvl Hgetind Hstopgt H Hrootstruc.
-        unfold  entryPDFlag in H3.
+        unfold  entryPDFlag in *.
         unfold readPDflag .
-        rewrite Hidx.
-        destruct (lookup ptsh1 lastidx (memory s) beqPage beqIndex)
-        as [v |]; [ destruct v as [ p0 |v|p0|v|ii] ; [ now contradict H3 |  
-        subst; trivial |now contradict H3 | now contradict H3 | 
-        now contradict H3 ]  |now contradict H3] .
+        assert(Hfalse : (ptsh1 =? defaultPage) = false).
+        apply NPeano.Nat.eqb_neq.
+        unfold not; intros;subst.
+        apply H6.
+        destruct ptsh1.
+        destruct defaultPage.
+        simpl in *.
+        subst.
+        f_equal.
+        apply proof_irrelevance.
+        rewrite Hfalse.
+        rewrite H5.
+        destruct ( pd v0); trivial.
         assert (0 < nbLevel) by apply nbLevelNotZero. omega.
         trivial.
-        rewrite H1 in Hsh1.
+        rewrite H10 in Hsh1.
         now contradict Hsh1.
-        rewrite H0 in Hsh1.
+        rewrite H8 in Hsh1.
         now contradict Hsh1. }
 Qed.
 
