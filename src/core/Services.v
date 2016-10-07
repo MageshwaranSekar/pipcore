@@ -271,7 +271,7 @@ Definition createPartition (descChild pdChild shadow1Child shadow2Child
         updatePartitionDescriptor phyDescChild idxPR phyDescChild descChild ;;
 
         (** Add pdChild and its physical address into the partition descriptor page *)
-(*         perform idxPD := getPDidx in *)
+        (* perform idxPD := getPDidx in *)
         updatePartitionDescriptor phyDescChild idxPD phyPDChild pdChild ;;
 
         (** Add shadow1Child and its physical address into the partition descriptor *)
@@ -287,13 +287,8 @@ Definition createPartition (descChild pdChild shadow1Child shadow2Child
         updatePartitionDescriptor phyDescChild idxListConf phyConfigPagesList ConfigPagesList ;;
 
         (** Add parent physical address into the partition descriptor of the child*)
-       (*  perform idxPRP := getPPRidx in *)
+        (* perform idxPRP := getPPRidx in *)
         updatePartitionDescriptor phyDescChild idxPRP currentPart nullVA ;;
-
-        (** Add the kernel mapping *)
-        perform kidx := getKidx in
-        perform  kernel := readPhyEntry currentPD kidx in
-        writePhyEntry phyPDChild kidx kernel true false false true false ;; 
 
         (** Set the virtual address pdChild as derived by the new child *)
         writeVirEntry ptPDChildFromSh1 idxPDChild descChild ;;
@@ -303,6 +298,11 @@ Definition createPartition (descChild pdChild shadow1Child shadow2Child
         writeVirEntry ptSh2ChildFromSh1 idxSh2Child descChild ;; 
         (**  Set the virtual address list as derived by the new child *)
         writeVirEntry ptConfigPagesListFromSh1 idxConfigPagesList descChild ;;
+        (** Add the kernel mapping *)
+        perform kidx := getKidx in
+        perform  kernel := readPhyEntry currentPD kidx in
+        writePhyEntry phyPDChild kidx kernel true false false true false ;; 
+        
         (** Set the virtual address descChild as a partition (new child) in parent *)
         writePDflag ptDescChildFromSh1 idxDescChild true ;; 
         ret true
