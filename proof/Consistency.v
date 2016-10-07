@@ -116,6 +116,17 @@ In partition (getPartitions multiplexer s) ->
 forall root, nextEntryIsPP partition idxroot root s->
  NoDup (getIndirections root s). 
 
+(** ** The [accessibleVAIsNotPartitionDescriptor] requires that accessible virtual 
+    addresses are not marked as partition descriptor into the first shadow configuation
+    structure  *)
+Definition accessibleVAIsNotPartitionDescriptor s:=
+forall partition va pd sh1 page, 
+  In partition (getPartitions multiplexer s) -> 
+  StateLib.getPd partition (memory s) = Some pd -> 
+  StateLib.getFstShadow partition (memory s) = Some sh1 -> 
+  getAccessibleMappedPage pd s va = Some page -> 
+  getPDFlag sh1 va s = false.
+  
 (** ** Conjunction of all consistency properties *)
 Definition consistency s := 
  partitionDescriptorEntry s /\  

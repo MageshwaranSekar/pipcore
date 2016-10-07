@@ -638,3 +638,22 @@ Definition getTableAddrRoot table idxroot currentPart va s : Prop :=
 Definition getAllPages: list page:= 
 map CPage (seq 0 nbPage ).
 
+Definition getPDFlag sh1 va s :=
+let idxVA := StateLib.getIndexOfAddr va fstLevel in
+match StateLib.getNbLevel with
+|Some nbL =>  match getIndirection sh1 va nbL (nbLevel - 1) s with
+  | Some tbl =>
+      if tbl =? defaultPage
+      then false
+      else
+       match StateLib.readPDflag tbl idxVA (memory s) with
+       | Some true => true
+       | Some false => false
+       | None => false
+       end
+  | None => false
+  end
+| None => false
+end.
+
+
