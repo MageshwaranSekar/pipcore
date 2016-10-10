@@ -7239,9 +7239,6 @@ intros [].
 
   (** propagatedProperties **)
     unfold propagatedProperties in *.
-    (** partitionsIsolation **)
-    assert (Hiso : partitionsIsolation s) by intuition.
-    split.
     assert(Hget : forall idx : index,
                   StateLib.getIndexOfAddr pdChild fstLevel = idx ->
                   isVE ptPDChildSh1 idx s /\ 
@@ -7254,11 +7251,24 @@ intros [].
     case_eq( lookup ptPDChildSh1 idxPDChild (memory s) beqPage beqIndex);
     intros; rewrite H1 in *; try now contradict Hve.
     case_eq v ; intros;rewrite H2 in *; try now contradict Hve.
+    (** partitionsIsolation **)
+    split.
+    assert (Hiso : partitionsIsolation s) by intuition.
     apply partitionsIsolationUpdtateSh1Structure with v0; trivial.
-    subst.
-    intuition.
     admit. (** Need new consistency property to prove the following goal:
-     StateLib.readPDflag ptPDChildSh1 idxPDChild (memory s) = Some false *)
+               StateLib.readPDflag ptPDChildSh1 idxPDChild (memory s) = Some false *)
+    (** kernelDataIsolation **)
+    split.
+    assert (Hkdi : kernelDataIsolation s) by intuition.
+    apply kernelDataIsolationUpdtateSh1Structure with v0; trivial.
+    admit. (** Need new consistency property to prove the following goal:
+               StateLib.readPDflag ptPDChildSh1 idxPDChild (memory s) = Some false *)
+    (** VerticalSharing **)
+    split.
+    assert (Hvs : verticalSharing s) by intuition.
+    apply verticalSharingUpdtateSh1Structure with v0; trivial.
+    admit. (** Need new consistency property to prove the following goal:
+               StateLib.readPDflag ptPDChildSh1 idxPDChild (memory s) = Some false *)
 (** TODO : To be finished *)
     admit.
     admit.
