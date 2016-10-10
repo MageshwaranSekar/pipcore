@@ -2399,7 +2399,8 @@ destruct H.
          assumption. }
 Qed. 
 Lemma toApplyPageTablesOrIndicesAreDifferent idx1 idx2 va1 va2 (table1 table2 : page) 
-currentPart currentPD level1 s: 
+currentPart root idxroot level1 F s: 
+(idxroot = PDidx \/ idxroot = sh1idx \/ idxroot = sh2idx) -> 
 (defaultPage =? table1) = false -> (defaultPage =? table2) = false -> 
 false = StateLib.checkVAddrsEqualityWOOffset nbLevel va1 va2 level1 -> 
 currentPart = currentPartition s -> 
@@ -2408,24 +2409,24 @@ StateLib.getIndexOfAddr va1 fstLevel = idx1 ->
 StateLib.getIndexOfAddr va2 fstLevel = idx2 -> 
 (forall idx : index,
 StateLib.getIndexOfAddr va1 fstLevel = idx ->
-isPE table1 idx s /\ getTableAddrRoot table1 PDidx currentPart va1 s) -> 
+F table1 idx s /\ getTableAddrRoot table1 idxroot currentPart va1 s) -> 
 (forall idx : index,
 StateLib.getIndexOfAddr va2 fstLevel = idx ->
-isPE table2 idx s /\ getTableAddrRoot table2 PDidx currentPart va2 s) -> 
-nextEntryIsPP currentPart PDidx currentPD s -> 
+F table2 idx s /\ getTableAddrRoot table2 idxroot currentPart va2 s) -> 
+nextEntryIsPP currentPart idxroot root s -> 
 Some level1 = StateLib.getNbLevel -> 
 table1 <> table2 \/ idx1 <> idx2. 
 Proof. 
- intros Hnotnull1 Hnotnull2 Hvas Hcurpart Hcons Hva1 Hva2 Htable1 Htable2 Hroot Hlevel.              
+ intros Hor Hnotnull1 Hnotnull2 Hvas Hcurpart Hcons Hva1 Hva2 Htable1 Htable2 Hroot Hlevel.              
  rewrite <- Hva1.
   rewrite <- Hva2.
   apply Htable1 in Hva1.
   apply Htable2 in Hva2.
   unfold getTableAddrRoot in *.
-  destruct Hva1 as (Hpe1 &_ & Htableroot1). 
-  destruct Hva2 as (Hpe2 &_ & Htableroot2).
-  generalize (Htableroot1 currentPD Hroot); clear Htableroot1;intros Htableroot1.
-  generalize (Htableroot2 currentPD Hroot); clear Htableroot2;intros Htableroot2.
+  destruct Hva1 as (Hpe1 & Hor1 & Htableroot1). 
+  destruct Hva2 as (Hpe2 & Hor2 & Htableroot2).
+  generalize (Htableroot1 root Hroot); clear Htableroot1;intros Htableroot1.
+  generalize (Htableroot2 root Hroot); clear Htableroot2;intros Htableroot2.
   destruct Htableroot1 as (nbl1 & Hnbl1 & stop1 & Hstop1 & Hind1). 
   destruct Htableroot2 as (nbl2 & Hnbl2 & stop2 & Hstop2 & Hind2).
   rewrite <- Hlevel in Hnbl1.
@@ -2439,18 +2440,20 @@ Proof.
   rewrite <- Hstop2 in Hstop1.
   rewrite Hstop1 in Hind1.
   clear Hstop1 Hnbl2 Hnbl1 .
-   apply  pageTablesOrIndicesAreDifferent with currentPD currentPD  
+   apply  pageTablesOrIndicesAreDifferent with root root  
   level1 stop2 s; trivial. 
-            unfold consistency in *.
+  unfold consistency in *.
   destruct Hcons.
   unfold partitionDescriptorEntry in *.
   assert (currentPartitionInPartitionsList s ) as Hpr by intuition.
   unfold currentPartitionInPartitionsList in *.
   subst.
   generalize (H  (currentPartition s)  Hpr); clear H; intros H.
-  assert (PDidx = PDidx \/ PDidx = sh1idx \/ PDidx = sh2idx \/ PDidx = sh3idx
-  \/  PDidx   = PPRidx \/  PDidx   = PRidx) as Hpd 
-  by auto.
+  assert (idxroot = PDidx \/
+    idxroot = sh1idx \/ idxroot = sh2idx \/ idxroot = sh3idx \/ idxroot = PPRidx 
+    \/ idxroot = PRidx) as Hpd .
+    intuition.
+
   apply H in Hpd.
   destruct Hpd as (_ & _ & Hpd).
   destruct Hpd as (pd & Hrootpd & Hnotnul).
@@ -2458,7 +2461,7 @@ Proof.
   move Hrootpd  at bottom.
   move Hnotnul at bottom.
   unfold nextEntryIsPP in Hroot , Hrootpd.
-  destruct (StateLib.Index.succ PDidx).
+  destruct (StateLib.Index.succ idxroot).
   subst. 
   destruct (lookup (currentPartition s) i (memory s) beqPage beqIndex); [
   | now contradict Hroot].
@@ -2472,9 +2475,9 @@ Proof.
   unfold currentPartitionInPartitionsList in *.
   subst.
   generalize (H  (currentPartition s)  Hpr); clear H; intros H.
-  assert (PDidx = PDidx \/ PDidx = sh1idx \/ PDidx = sh2idx \/ PDidx = sh3idx 
-  \/ PDidx  = PPRidx \/ PDidx  = PRidx)  as Hpd 
-  by auto.
+  assert (idxroot = PDidx \/
+    idxroot = sh1idx \/ idxroot = sh2idx \/ idxroot = sh3idx \/ idxroot = PPRidx \/ idxroot = PRidx)  as Hpd 
+  by intuition.
   apply H in Hpd.
   destruct Hpd as (_ & _ & Hpd).
   destruct Hpd as (pd & Hrootpd & Hnotnul).
@@ -2482,7 +2485,7 @@ Proof.
   move Hrootpd  at bottom.
   move Hnotnul at bottom.
   unfold nextEntryIsPP in Hroot , Hrootpd.
-  destruct (StateLib.Index.succ PDidx).
+  destruct (StateLib.Index.succ idxroot).
   subst.
   destruct (lookup (currentPartition s) i (memory s) beqPage beqIndex); [
   | now contradict Hroot].
@@ -2495,12 +2498,12 @@ Proof.
   unfold noDupConfigPagesList in Hcons.
   unfold currentPartitionInPartitionsList in Hcons.
   destruct Hcons as (_ & _& _& _& Hcurprt & _ & Hdup). subst.
-  apply Hdup with PDidx (currentPartition s); trivial. left. trivial.
+  apply Hdup with idxroot (currentPartition s); trivial.
   unfold consistency in Hcons.
   unfold noDupConfigPagesList in Hcons.
   unfold currentPartitionInPartitionsList in Hcons.
   destruct Hcons as (_ & _& _& _& Hcurprt & _ & Hdup). subst.
-  apply Hdup with PDidx (currentPartition s); trivial. left. trivial.
+  apply Hdup with idxroot (currentPartition s); trivial.
   move Hlevel at bottom.
   unfold StateLib.getNbLevel in Hlevel.
    case_eq (gt_dec nbLevel 0 ); intros;
