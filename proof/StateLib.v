@@ -638,15 +638,17 @@ Definition getTableAddrRoot table idxroot currentPart va s : Prop :=
 Definition getAllPages: list page:= 
 map CPage (seq 0 nbPage ).
 
+(** The [getPDFlag] checks if the given virtual address corresponds to a partition
+    descriptor **)
 Definition getPDFlag sh1 va s :=
-let idxVA := StateLib.getIndexOfAddr va fstLevel in
-match StateLib.getNbLevel with
+let idxVA := getIndexOfAddr va fstLevel in
+match getNbLevel with
 |Some nbL =>  match getIndirection sh1 va nbL (nbLevel - 1) s with
   | Some tbl =>
       if tbl =? defaultPage
       then false
       else
-       match StateLib.readPDflag tbl idxVA (memory s) with
+       match readPDflag tbl idxVA (memory s) with
        | Some true => true
        | Some false => false
        | None => false
@@ -656,4 +658,6 @@ match StateLib.getNbLevel with
 | None => false
 end.
 
-
+Definition isPartitionFalse ptPDChildSh1 idxPDChild s :=
+readPDflag ptPDChildSh1 idxPDChild (memory s) = Some false \/
+readPDflag ptPDChildSh1 idxPDChild (memory s) = None.

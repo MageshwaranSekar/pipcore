@@ -136,4 +136,5 @@ Definition consistency s :=
  currentPartitionInPartitionsList s /\
  noDupMappedPagesList s /\
  noDupConfigPagesList s  /\
- parentInPartitionList s . 
+ parentInPartitionList s /\
+ accessibleVAIsNotPartitionDescriptor s. 

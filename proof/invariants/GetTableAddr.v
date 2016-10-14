@@ -63,9 +63,16 @@ getTableAddr indirection va l
  }}.
 Proof.
 unfold Internal.getTableAddr.
-revert l indirection.
-induction nbLevel; simpl.
-+ intros. admit.
+assert(Hsize : nbLevel   <= nbLevel) by omega.
+assert (Hlevel : l < nbLevel).
+destruct l. simpl;omega.
+revert Hsize Hlevel.
+revert indirection l.
+generalize nbLevel at 1 3 4.
+induction n; simpl.
++ intros. destruct l.
+  simpl in *.
+  omega.  
 + intros.
   eapply WP.bindRev.
   eapply WP.weaken.
@@ -484,7 +491,7 @@ induction nbLevel; simpl.
         (** next step **)
         unfold hoareTriple in *.
         intros.
-        generalize (IHn levelpred nextindirection s);clear IHn;intro IHn.
+        generalize (IHn nextindirection levelpred  );clear IHn;intro IHn.
         subst.
         +  assert ( P s /\
       consistency s /\
@@ -602,7 +609,53 @@ induction nbLevel; simpl.
            rewrite H0.
            apply levelPredMinus1 ;trivial. symmetry; assumption. 
            }
-               - apply IHn in H0.  assumption. } 
-            Admitted.
-
+  - apply IHn in H0.
+    * assumption.
+    * assert ( false = Level.eqb l fstLevel) by intuition.
+      destruct H.
+      clear IHn.
+      clear H H0.               
+      symmetry in H1. 
+      apply levelPredMinus1 in H2;trivial.
+      unfold CLevel in H2.
+      case_eq (lt_dec (l - 1) nbLevel);
+      intros; rewrite H in *.
+      destruct levelpred.
+      inversion H2.
+      subst.
+      clear H2.
+      simpl.
+      destruct l.
+      simpl in *.
+      assert (0 < nbLevel) by apply nbLevelNotZero.
+      apply levelEqBEqNatFalse0 in H1.
+      simpl in *.
+      omega.
+      destruct l.
+      simpl in *.
+      omega.
+    * assert ( false = Level.eqb l fstLevel) by intuition.
+      destruct H.
+      clear IHn.
+      clear H H0.               
+      symmetry in H1. 
+      apply levelPredMinus1 in H2;trivial.
+      unfold CLevel in H2.
+      case_eq (lt_dec (l - 1) nbLevel);
+      intros; rewrite H in *.
+      destruct levelpred.
+      inversion H2.
+      subst.
+      clear H2.
+      simpl.
+      destruct l.
+      simpl in *.
+      assert (0 < nbLevel) by apply nbLevelNotZero.
+      apply levelEqBEqNatFalse0 in H1.
+      simpl in *.
+      omega.
+      destruct l.
+      simpl in *.
+      omega. }
+Qed.
            

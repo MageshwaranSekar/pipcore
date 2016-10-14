@@ -35,7 +35,7 @@
     This file contains required lemmas to help in proving some properties
     on our dependent types defined into [Model.ADT] *)
 Require Import Model.ADT  Model.Hardware Model.MAL Arith Model.Lib StateLib.
-Require Import Coq.Logic.ProofIrrelevance Omega.
+Require Import Coq.Logic.ProofIrrelevance Omega Bool.
 
 (** ADT : level **)
 Lemma levelEqBEqNatTrue :
@@ -50,6 +50,26 @@ forall l l' : level, StateLib.Level.eqb l l' = true -> l = l' .
  assert (Hl = Hl0).
  apply proof_irrelevance. subst. intuition.
 Qed.
+
+Lemma levelEqBEqNatFalse : 
+forall l ,
+StateLib.Level.eqb l fstLevel = false -> l > fstLevel.
+Proof.
+intros.
+unfold StateLib.Level.eqb in H.
+apply beq_nat_false in H.
+unfold fstLevel in *.
+unfold CLevel in *.
+case_eq (lt_dec 0 nbLevel).
+intros.
+rewrite H0 in *.
+simpl in *. omega.
+intros.
+assert (0 < nbLevel). 
+apply nbLevelNotZero.
+contradict H1.
+intuition. 
+Qed. 
 
 Lemma levelEqBEqNatFalse0 : 
 forall l ,
@@ -70,6 +90,35 @@ apply nbLevelNotZero.
 contradict H1.
 intuition. 
 Qed. 
+
+Lemma levelPredNone nbL:
+StateLib.Level.eqb nbL fstLevel = false ->
+StateLib.Level.pred nbL <> None.
+Proof.
+intros.
+unfold Level.pred.
+case_eq(gt_dec nbL 0); intros.
+unfold not; intros.
+inversion H1.
+apply levelEqBEqNatFalse0 in H.
+omega.
+Qed.
+
+Lemma levelPredLt nbL l :
+StateLib.Level.eqb nbL fstLevel = false ->
+StateLib.Level.pred nbL = Some l -> 
+l < nbL. 
+Proof.
+intros.
+unfold Level.pred in *.
+case_eq(gt_dec nbL 0); intros.
+rewrite H1 in *.
+inversion H0.
+simpl in *.
+omega.
+apply levelEqBEqNatFalse0 in H.
+omega.
+Qed.    
 
 Lemma CLevel0_r :  forall l : level,l - CLevel 0 = l. 
 Proof. 
@@ -159,7 +208,49 @@ case_eq (lt_dec (x - x0) nbLevel ).
 intros. rewrite H1 in H0.
 simpl in *. omega.
 intros. contradict H1. omega.       
-Qed.   
+Qed. 
+
+Lemma getNbLevelLe : 
+forall nbL, 
+Some nbL = StateLib.getNbLevel -> 
+nbL <= CLevel (nbLevel - 1).
+Proof.
+intros.
+unfold getNbLevel in *.
+destruct (gt_dec nbLevel 0).
+inversion H. 
+unfold CLevel.
+case_eq (lt_dec (nbLevel - 1) nbLevel); intros.
+simpl.
+omega.
+omega.
+assert (0 < nbLevel) by apply nbLevelNotZero.
+omega.
+Qed.
+
+Lemma getNbLevelEq : 
+forall nbL, 
+Some nbL = StateLib.getNbLevel -> 
+nbL = CLevel (nbLevel - 1).
+Proof.
+intros.
+unfold getNbLevel in *.
+destruct (gt_dec nbLevel 0).
+inversion H.
+destruct nbL.
+simpl in *.
+ 
+unfold CLevel.
+case_eq (lt_dec (nbLevel - 1) nbLevel); intros.
+inversion H.
+subst.
+f_equal.
+apply proof_irrelevance.
+assert (0 < nbLevel) by apply nbLevelNotZero.
+omega.
+now contradict H.
+Qed.  
+
 
 (**** ADT : page **)
 Lemma isDefaultPageFalse : forall p,   (defaultPage =? pa p) = false -> pa p <> defaultPage .
@@ -691,47 +782,6 @@ destruct a. simpl in *.
 omega.
 Qed.
 
-Lemma getNbLevelLe : 
-forall nbL, 
-Some nbL = StateLib.getNbLevel -> 
-nbL <= CLevel (nbLevel - 1).
-Proof.
-intros.
-unfold getNbLevel in *.
-destruct (gt_dec nbLevel 0).
-inversion H. 
-unfold CLevel.
-case_eq (lt_dec (nbLevel - 1) nbLevel); intros.
-simpl.
-omega.
-omega.
-assert (0 < nbLevel) by apply nbLevelNotZero.
-omega.
-Qed.
-
-Lemma getNbLevelEq : 
-forall nbL, 
-Some nbL = StateLib.getNbLevel -> 
-nbL = CLevel (nbLevel - 1).
-Proof.
-intros.
-unfold getNbLevel in *.
-destruct (gt_dec nbLevel 0).
-inversion H.
-destruct nbL.
-simpl in *.
- 
-unfold CLevel.
-case_eq (lt_dec (nbLevel - 1) nbLevel); intros.
-inversion H.
-subst.
-f_equal.
-apply proof_irrelevance.
-assert (0 < nbLevel) by apply nbLevelNotZero.
-omega.
-now contradict H.
-Qed.
-
 
 (** beqPairs **)
 Lemma beqPairsTrue : 
@@ -805,12 +855,47 @@ apply beq_nat_true in H1.
 destruct table1, table2. simpl in *. subst.
 assert (Hp = Hp0).
 apply proof_irrelevance. subst. trivial. 
-admit.
-admit. (*   
-
-contradict H2.
-apply beq_nat_true in H0.
-destruct idx1, idx2. simpl in *. subst.
-assert (Hi = Hi0).
-apply proof_irrelevance. subst. trivial. *)
-Admitted.
+assert((idx1 =? idx2) = false).
+apply Nat.eqb_neq. unfold not.
+intros.
+destruct idx1; destruct idx2.
+simpl in *.
+subst.
+apply H0.
+f_equal.
+apply proof_irrelevance.
+rewrite H.
+case_eq ((table1 =? table2) && false).
+intros.
+apply andb_true_iff in H1.
+intuition.
+trivial.
+case_eq (table1 =? table2) ; case_eq(idx1 =? idx2);intuition.
++ rewrite H1 in H.
+  rewrite H0 in H.
+  intuition.
++ apply beq_nat_false in H0.
+  right.
+  intros. 
+  destruct idx1; destruct idx2.
+  simpl in *.
+  inversion H2.
+  subst.
+  now contradict H0.
++ apply beq_nat_false in H1.
+  left.
+  intros. 
+  destruct table1; destruct table2.
+  simpl in *.
+  inversion H2.
+  subst.
+  now contradict H1.
++ apply beq_nat_false in H1.
+  left.
+  intros. 
+  destruct table1; destruct table2.
+  simpl in *.
+  inversion H2.
+  subst.
+  now contradict H1.
+Qed.

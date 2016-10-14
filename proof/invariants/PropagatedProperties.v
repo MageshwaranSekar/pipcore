@@ -74,14 +74,12 @@ entryPresentFlag ptRefChild idxRefChild presentRefChild s /\
 StateLib.getIndexOfAddr pdChild fstLevel = idx ->
 isPE ptPDChild idx s /\ getTableAddrRoot ptPDChild PDidx currentPart pdChild s) /\
 (defaultPage =? ptPDChild) = false /\
-StateLib.getIndexOfAddr pdChild fstLevel = idxPDChild /\
-entryPresentFlag ptPDChild idxPDChild presentPDChild s /\
+StateLib.getIndexOfAddr pdChild fstLevel = idxPDChild /\ entryPresentFlag ptPDChild idxPDChild presentPDChild s /\
 (forall idx : index,
 StateLib.getIndexOfAddr shadow1 fstLevel = idx ->
 isPE ptSh1Child idx s /\ getTableAddrRoot ptSh1Child PDidx currentPart shadow1 s) /\
 (defaultPage =? ptSh1Child) = false /\
-StateLib.getIndexOfAddr shadow1 fstLevel = idxSh1 /\
-entryPresentFlag ptSh1Child idxSh1 presentSh1 s /\
+StateLib.getIndexOfAddr shadow1 fstLevel = idxSh1 /\ entryPresentFlag ptSh1Child idxSh1 presentSh1 s /\
 (forall idx : index,
 StateLib.getIndexOfAddr shadow2 fstLevel = idx ->
 isPE ptSh2Child idx s /\ getTableAddrRoot ptSh2Child PDidx currentPart shadow2 s) /\
@@ -141,8 +139,9 @@ isEntryPage ptConfigPagesList idxConfigPagesList phyConfigPagesList s /\
 In partition (getPartitions multiplexer s) ->
 ~ (partition = phyConfigPagesList \/ In phyConfigPagesList (getConfigPagesAux partition s))) /\
 isEntryPage ptRefChild idxRefChild phyDescChild s /\ (defaultPage =? phyDescChild) = false /\
-(forall partition : page,
-In partition (getPartitions multiplexer s) -> ~ In phyDescChild (getConfigPages partition s)) /\
-entryUserFlag ptPDChild idxPDChild false s /\ entryUserFlag ptSh1Child idxSh1 false s /\
-entryUserFlag ptSh2Child idxSh2 false s /\ entryUserFlag ptConfigPagesList idxConfigPagesList false s /\
-entryUserFlag ptRefChild idxRefChild false s.
+(forall partition : page, In partition (getPartitions multiplexer s) -> ~ In phyDescChild (getConfigPages partition s)) /\
+isPartitionFalse ptPDChildSh1 idxPDChild s /\ entryUserFlag ptPDChild idxPDChild false s /\
+isPartitionFalse ptSh1ChildFromSh1 idxSh1 s /\ entryUserFlag ptSh1Child idxSh1 false s /\
+isPartitionFalse childSh2 idxSh2 s /\ entryUserFlag ptSh2Child idxSh2 false s /\
+isPartitionFalse childListSh1 idxConfigPagesList s /\ entryUserFlag ptConfigPagesList idxConfigPagesList false s /\
+isPartitionFalse ptRefChildFromSh1 idxRefChild s /\ entryUserFlag ptRefChild idxRefChild false s. 

@@ -1670,7 +1670,7 @@ eapply WP.bindRev.
     destruct H0 as (H0 & Hfalse). 
     try repeat rewrite and_assoc in H0.
     assert (Hpost := conj (conj H0 Hsplit)  Hnew).
-     assert(Hphy :forall partition, In partition (getPartitions multiplexer s) ->
+    assert(Hphy :forall partition, In partition (getPartitions multiplexer s) ->
       ~ In phyDescChild  (getConfigPages partition s)).
     { intros. clear H0 Hsplit Hnew.
       try repeat rewrite  andb_true_iff in Hlegit.
@@ -1686,8 +1686,42 @@ eapply WP.bindRev.
       intuition.
       apply physicalPageIsAccessible with ptRefChild descChild 
       idxRefChild accessibleChild level presentRefChild currentPD; subst; intuition. }
+    assert (Hreadflag : isPartitionFalse ptPDChildSh1 idxPDChild s ).
+   { unfold isPartitionFalse.
+    unfold consistency in *. 
+    assert(Haccessva : accessibleVAIsNotPartitionDescriptor s) by intuition.
+    unfold accessibleVAIsNotPartitionDescriptor in *.
+    assert (Hflag : getPDFlag currentShadow1 pdChild s = false).
+    { apply Haccessva with currentPart currentPD phyPDChild.
+      unfold consistency in *.
+      unfold currentPartitionInPartitionsList in *.
+      intuition.
+      subst;assumption.
+      apply nextEntryIsPPgetPd; intuition.
+      apply nextEntryIsPPgetFstShadow;intuition.
+      assert (pa entry = phyPDChild).
+      apply isEntryPageLookupEq with ptPDChild idxPDChild s; trivial.
+      intuition.
+      subst.
+      repeat rewrite andb_true_iff in Hlegit.
+      intuition.
+      subst.      
+      apply isAccessibleMappedPage with ptPDChild;trivial. }
+    apply getPDFlagReadPDflag with currentShadow1 pdChild currentPart;trivial.
+    intuition.  
+    apply Nat.eqb_neq.
+    assert(Hfalsepge : (defaultPage =? ptPDChildSh1) = false) by trivial.
+    apply beq_nat_false in Hfalsepge.
+    unfold not;intros Hfalse'.
+    rewrite Hfalse' in Hfalsepge.    
+    now contradict Hfalsepge.
+    intuition.
+    intuition.
+    intuition. }
+   assert(Hnewprops := conj Hphy Hreadflag).
 (*     try repeat rewrite and_assoc in Hpost.   *)
-    assert(Hnewpost := conj Hpost Hphy).
+
+    assert (Hnewpost := conj Hpost Hnewprops).    
     pattern s in Hnewpost.
     match type of Hnewpost with 
     | ?HT s => instantiate (1 := fun tt s => HT s /\ 
@@ -1777,16 +1811,20 @@ eapply WP.bindRev.
     assert (Hcons : consistency s) by intuition. 
     clear Hpost Hsplit H0.     
     unfold consistency in *.
-    split. apply partitionDescriptorEntryUpdateUserFlag;trivial.
+    split.
+    (** partitionDescriptorEntry **)
+    apply partitionDescriptorEntryUpdateUserFlag;trivial.
     intuition.
+    (** dataStructurePdSh1Sh2asRoot **)
     destruct Hcons as (Hpe & Hpd & Hsh1 & Hsh2 & Hcurpartlist & 
-    Hnodupmapped & Hnodupconfig & Hparent).
+    Hnodupmapped & Hnodupconfig & Hparent & Hsh1struct).
     repeat split; try  apply dataStructurePdSh1Sh2asRootUpdateUserFlag;intuition.
     unfold currentPartitionInPartitionsList in *.
     simpl in *. subst. 
     assert(getPartitions multiplexer s' = getPartitions multiplexer s) as Hpartions.
     apply getPartitionsUpdateUserFlag; trivial.
     rewrite Hpartions. assumption.
+    (** noDupMappedPagesList **)
     unfold noDupMappedPagesList in *.
     intros partition HgetPartnewstate.
     assert ( getMappedPages partition s' = getMappedPages partition s) as Hmaps.
@@ -1802,6 +1840,7 @@ eapply WP.bindRev.
     rewrite HgetPart in HgetPartnewstate.
     apply Hnodupmapped;assumption.
     apply getIndirectionsNoDupUpdateUserFlag; trivial.
+    (** parentInPartitionList **)
     unfold parentInPartitionList in *.
     assert (getPartitions multiplexer s' = getPartitions multiplexer s) as HgetPart.
     apply getPartitionsUpdateUserFlag; trivial.
@@ -1810,6 +1849,32 @@ eapply WP.bindRev.
     generalize (Hparent partition HgetParts); clear Hparent; intros Hparent; trivial.
     apply  nextEntryIsPPUpdateUserFlag' in  Hroot.
     apply Hparent; trivial.
+    (** accessibleVAIsNotPartitionDescriptor **)
+    unfold s'. 
+    subst.
+    apply accessibleVAIsNotPartitionDescriptorUpdateUserFlag with level
+    (currentPartition s) currentPD ;trivial.
+    assert(Hget : forall idx : index,
+      StateLib.getIndexOfAddr pdChild fstLevel = idx ->
+      isPE ptPDChild idx s /\ 
+      getTableAddrRoot ptPDChild PDidx (currentPartition s) pdChild s) by trivial.     
+    assert(isPE ptPDChild (StateLib.getIndexOfAddr pdChild fstLevel) s /\ 
+            getTableAddrRoot ptPDChild PDidx (currentPartition s) pdChild s)
+    as (_ & Hi).
+    apply Hget; trivial.
+    assumption.
+    apply nextEntryIsPPgetPd;trivial.
+    assert(Heq :pa entry = phyPDChild).
+    apply isEntryPageLookupEq with ptPDChild (StateLib.getIndexOfAddr pdChild fstLevel) s;trivial.
+    rewrite Heq.
+    subst.
+    apply isAccessibleMappedPage with ptPDChild;trivial.
+    repeat rewrite andb_true_iff in Hlegit.
+    intuition.
+    subst;trivial.
+    repeat rewrite andb_true_iff in Hlegit.
+    intuition.
+    subst;trivial.
     clear Hpost.
     rename H into Hcond. 
     assert (H := conj (conj (conj H0 Hfalse) Hsplit)  Hnew).
@@ -1876,7 +1941,7 @@ eapply WP.bindRev.
         exists stop. split; trivial.
         rewrite <- Hind.
         apply getIndirectionUpdateUserFlag;trivial. 
-      * apply entryPresentFlagUpdateUserFlag;assumption.
+      * apply entryPresentFlagUpdateUserFlag;assumption. 
      
       * assert(Hi: forall idx : index,
                     StateLib.getIndexOfAddr shadow1 fstLevel = idx ->
@@ -2259,7 +2324,8 @@ eapply WP.bindRev.
         assert(getPartitions multiplexer s' = getPartitions multiplexer s) as Hpartions.
         apply getPartitionsUpdateUserFlag; trivial.
         rewrite Hpartions in *. assumption. right; assumption.
-      * 
+      * admit. (** prove new property to propagate **)
+      *
 (*       assert( Hget : getPartitionAux multiplexer s' (nbPage + 1) = getPartitionAux multiplexer s (nbPage + 1)).
       apply getPartitionAuxUpdateUserFlag; trivial.
       rewrite Hget. intuition. *)
@@ -2287,14 +2353,46 @@ eapply WP.bindRev.
       apply H1 in H2. intuition. }
     destruct Hlookup as (entry & Hlookup).
     exists entry ; split;trivial.
-     
     destruct H0 as (((H0 & Hii) & Hnew )& Hnew').
     destruct H0 as (H0 & Hi).
     do 4 rewrite <- and_assoc in Hi.
     destruct Hi as (Hi & Hsplit). 
     destruct Hi as (Hi & Hfalse). 
     try repeat rewrite and_assoc in Hi.
-    assert (Hpost := (conj (conj (conj (conj (conj H0 Hi) Hsplit) Hii) Hnew) Hnew')). 
+    assert (Hpost1 := (conj (conj (conj (conj (conj H0 Hi) Hsplit) Hii) Hnew) Hnew')). 
+   assert (Hreadflag : isPartitionFalse ptSh1ChildFromSh1 idxSh1 s ).
+   { unfold isPartitionFalse.
+    unfold consistency in *. 
+    assert(Haccessva : accessibleVAIsNotPartitionDescriptor s) by intuition.
+    unfold accessibleVAIsNotPartitionDescriptor in *.
+    assert (Hflag : getPDFlag currentShadow1 shadow1 s = false).
+    { apply Haccessva with currentPart currentPD phySh1Child.
+      unfold consistency in *.
+      unfold currentPartitionInPartitionsList in *.
+      intuition.
+      subst;assumption.
+      apply nextEntryIsPPgetPd; intuition.
+      apply nextEntryIsPPgetFstShadow;intuition.
+      assert (pa entry = phySh1Child).
+      apply isEntryPageLookupEq with ptSh1Child idxSh1 s; trivial.
+      intuition.
+      subst.
+      repeat rewrite andb_true_iff in Hlegit.
+      intuition.
+      subst.      
+      apply isAccessibleMappedPage with ptSh1Child;trivial. }
+    apply getPDFlagReadPDflag with currentShadow1 shadow1 currentPart;trivial.
+    intuition.  
+    apply Nat.eqb_neq.
+    assert(Hfalsepge : (defaultPage =? ptSh1ChildFromSh1) = false) by trivial.
+    apply beq_nat_false in Hfalsepge.
+    unfold not;intros Hfalse'.
+    rewrite Hfalse' in Hfalsepge.    
+    now contradict Hfalsepge.
+    intuition.
+    intuition.
+    intuition. }
+    assert (Hpost := conj Hpost1 Hreadflag).
     pattern s in Hpost.
     match type of Hpost with 
     | ?HT s => instantiate (1 := fun tt s => HT s /\ 
@@ -2312,7 +2410,7 @@ eapply WP.bindRev.
                  present := present entry;
                  user := false;
                  pa := pa entry |}) (memory s) beqPage beqIndex |}) in *.
-    do 6 apply and_assoc.             
+    do 7 apply and_assoc.             
     split. 
   (** partitionsIsolation **) 
     assert (partitionsIsolation s ) as Hiso. intuition.
@@ -2381,12 +2479,12 @@ eapply WP.bindRev.
     split.
   (** Consistency **) 
     assert (Hcons : consistency s) by intuition. 
-    clear Hpost Hsplit H0.     
+    clear Hsplit H0.     
     unfold consistency in *.
     split. apply partitionDescriptorEntryUpdateUserFlag;trivial.
     intuition.
     destruct Hcons as (Hpe & Hpd & Hsh1 & Hsh2 & Hcurpartlist & 
-    Hnodupmapped & Hnodupconfig & Hparent).
+    Hnodupmapped & Hnodupconfig & Hparent & Hsh1struct).
     repeat split; try  apply dataStructurePdSh1Sh2asRootUpdateUserFlag;intuition.
     unfold currentPartitionInPartitionsList in *.
     simpl in *. subst. 
@@ -2416,6 +2514,32 @@ eapply WP.bindRev.
     generalize (Hparent partition HgetParts); clear Hparent; intros Hparent; trivial.
     apply  nextEntryIsPPUpdateUserFlag' in  Hroot.
     apply Hparent; trivial.
+    (** accessibleVAIsNotPartitionDescriptor **)
+    unfold s'. 
+    subst.
+    apply accessibleVAIsNotPartitionDescriptorUpdateUserFlag with level
+    (currentPartition s) currentPD ;trivial.
+    assert(Hget : forall idx : index,
+      StateLib.getIndexOfAddr shadow1 fstLevel = idx ->
+      isPE ptSh1Child idx s /\ 
+      getTableAddrRoot ptSh1Child PDidx (currentPartition s) shadow1 s) by trivial.     
+    assert(isPE ptSh1Child (StateLib.getIndexOfAddr shadow1 fstLevel) s /\ 
+            getTableAddrRoot ptSh1Child PDidx (currentPartition s) shadow1 s)
+    as (_ & Hi).
+    apply Hget; trivial.
+    assumption.
+    apply nextEntryIsPPgetPd;trivial.
+    assert(Heq :pa entry = phySh1Child).
+    apply isEntryPageLookupEq with ptSh1Child (StateLib.getIndexOfAddr shadow1 fstLevel) s;trivial.
+    rewrite Heq.
+    subst.
+    apply isAccessibleMappedPage with ptSh1Child;trivial.
+    repeat rewrite andb_true_iff in Hlegit.
+    intuition.
+    subst;trivial.
+    repeat rewrite andb_true_iff in Hlegit.
+    intuition.
+    subst;trivial.
     clear Hpost.
     rename H into Hcond. 
     assert (H := conj (conj (conj H0 Hfalse) Hsplit)  Hnew).
@@ -2859,7 +2983,9 @@ eapply WP.bindRev.
         assert(getPartitions multiplexer s' = getPartitions multiplexer s) as Hpartions.
         apply getPartitionsUpdateUserFlag; trivial.
         rewrite Hpartions in *. assumption. right; assumption.
+      * admit. (** prove new property to propagate **)
       * apply entryUserFlagUpdateUserFlagSameValue; trivial.
+      * admit. (** prove new property to propagate **)
 (** New property **) 
       * unfold entryUserFlag. unfold s'.
         cbn.
@@ -2883,13 +3009,46 @@ eapply WP.bindRev.
       apply H1 in H2. intuition. }
     destruct Hlookup as (entry & Hlookup).
     exists entry ; split;trivial.
-     destruct H0 as (((((H0 & Hp1)& Hp2) & Hp3) & Hnew )& Hnew').
+     destruct H0 as ((((((H0 & Hp1)& Hp2) & Hp3) & Hnew )& Hnew') & Hpdflag).
     do 4 rewrite <- and_assoc in Hp1.
     destruct Hp1 as (Hp1 & Hsplit). 
     destruct Hp1 as (Hp1 & Hfalse). 
     try repeat rewrite and_assoc in Hp1.
-    assert (Hpost := (conj (conj (conj (conj (conj (conj H0 Hp1) 
-    Hsplit) Hp2) Hp3) Hnew) Hnew')). 
+    assert (Hreadflag : isPartitionFalse childSh2 idxSh2 s ).
+   { unfold isPartitionFalse.
+    unfold consistency in *. 
+    assert(Haccessva : accessibleVAIsNotPartitionDescriptor s) by intuition.
+    unfold accessibleVAIsNotPartitionDescriptor in *.
+    assert (Hflag : getPDFlag currentShadow1 shadow2 s = false).
+    { apply Haccessva with currentPart currentPD phySh2Child.
+      unfold consistency in *.
+      unfold currentPartitionInPartitionsList in *.
+      intuition.
+      subst;assumption.
+      apply nextEntryIsPPgetPd; intuition.
+      apply nextEntryIsPPgetFstShadow;intuition.
+      assert (pa entry = phySh2Child).
+      apply isEntryPageLookupEq with ptSh2Child idxSh2 s; trivial.
+      intuition.
+      subst.
+      repeat rewrite andb_true_iff in Hlegit.
+      intuition.
+      subst.      
+      apply isAccessibleMappedPage with ptSh2Child;trivial. }
+    apply getPDFlagReadPDflag with currentShadow1 shadow2 currentPart;trivial.
+    intuition.  
+    apply Nat.eqb_neq.
+    assert(Hfalsepge : (defaultPage =? childSh2) = false) by trivial.
+    apply beq_nat_false in Hfalsepge.
+    unfold not;intros Hfalse'.
+    rewrite Hfalse' in Hfalsepge.    
+    now contradict Hfalsepge.
+    intuition.
+    intuition.
+    intuition. }
+    assert (Hpost1 := conj (conj (conj (conj (conj (conj (conj H0 Hp1) 
+    Hsplit) Hp2) Hp3) Hnew) Hnew') Hpdflag).
+    assert (Hpost := conj Hpost1 Hreadflag). 
     pattern s in Hpost.
     match type of Hpost with 
     | ?HT s => instantiate (1 := fun tt s => HT s /\ 
@@ -2907,7 +3066,7 @@ eapply WP.bindRev.
                  present := present entry;
                  user := false;
                  pa := pa entry |}) (memory s) beqPage beqIndex |}) in *.
-    do 8 apply and_assoc.
+    do 10 apply and_assoc.
     split.
   (** partitionsIsolation **) 
     assert (partitionsIsolation s ) as Hiso. intuition.
@@ -2976,12 +3135,12 @@ eapply WP.bindRev.
     split.
   (** Consistency **) 
     assert (Hcons : consistency s) by intuition. 
-    clear Hpost Hsplit H0.     
+    clear Hsplit H0.     
     unfold consistency in *.
     split. apply partitionDescriptorEntryUpdateUserFlag;trivial.
     intuition.
     destruct Hcons as (Hpe & Hpd & Hsh1 & Hsh2 & Hcurpartlist & 
-    Hnodupmapped & Hnodupconfig & Hparent).
+    Hnodupmapped & Hnodupconfig & Hparent & Hsh1struct ).
     repeat split; try  apply dataStructurePdSh1Sh2asRootUpdateUserFlag;intuition.
     unfold currentPartitionInPartitionsList in *.
     simpl in *. subst. 
@@ -3011,6 +3170,32 @@ eapply WP.bindRev.
     generalize (Hparent partition HgetParts); clear Hparent; intros Hparent; trivial.
     apply  nextEntryIsPPUpdateUserFlag' in  Hroot.
     apply Hparent; trivial.
+    (** accessibleVAIsNotPartitionDescriptor **)
+    unfold s'. 
+    subst.
+    apply accessibleVAIsNotPartitionDescriptorUpdateUserFlag with level
+    (currentPartition s) currentPD ;trivial.
+    assert(Hget : forall idx : index,
+      StateLib.getIndexOfAddr shadow2 fstLevel = idx ->
+      isPE ptSh2Child idx s /\ 
+      getTableAddrRoot ptSh2Child PDidx (currentPartition s) shadow2 s) by trivial.     
+    assert(isPE ptSh2Child (StateLib.getIndexOfAddr shadow2 fstLevel) s /\ 
+            getTableAddrRoot ptSh2Child PDidx (currentPartition s) shadow2 s)
+    as (_ & Hi).
+    apply Hget; trivial.
+    assumption.
+    apply nextEntryIsPPgetPd;trivial.
+    assert(Heq :pa entry = phySh2Child).
+    apply isEntryPageLookupEq with ptSh2Child (StateLib.getIndexOfAddr shadow2 fstLevel) s;trivial.
+    rewrite Heq.
+    subst.
+    apply isAccessibleMappedPage with ptSh2Child;trivial.
+    repeat rewrite andb_true_iff in Hlegit.
+    intuition.
+    subst;trivial.
+    repeat rewrite andb_true_iff in Hlegit.
+    intuition.
+    subst;trivial.
     clear Hpost.
     rename H into Hcond. 
     assert (H := conj (conj (conj H0 Hfalse) Hsplit)  Hnew).
@@ -3446,8 +3631,11 @@ eapply WP.bindRev.
         assert(getPartitions multiplexer s' = getPartitions multiplexer s) as Hpartions.
         apply getPartitionsUpdateUserFlag; trivial.
         rewrite Hpartions in *. assumption. right; assumption.
+      * admit. (** prove new property to propagate **)
       * apply entryUserFlagUpdateUserFlagSameValue; trivial.
+      * admit. (** prove new property to propagate **)
       * apply entryUserFlagUpdateUserFlagSameValue; trivial.
+      * admit. (** prove new property to propagate **)
 (** New property **)  
       * unfold entryUserFlag. unfold s'.
         cbn.
@@ -3472,13 +3660,42 @@ eapply WP.bindRev.
       apply H1 in H2. intuition. }
     destruct Hlookup as (entry & Hlookup).
     exists entry ; split;trivial. 
-     destruct H0 as (((((((H0 & Hp1)& Hp2) & Hp3)& Hp4)& Hp5) & Hnew )& Hnew').
+     destruct H0 as (((((((((H0 & Hp1)& Hp2) & Hp3)& Hp4)& Hp5) & Hnew )& Hnew')& Hpdflag1 )& Hpdflag2).
     do 4 rewrite <- and_assoc in Hp2.
     destruct Hp2 as (Hp2 & Hsplit). 
     destruct Hp2 as (Hp2 & Hfalse). 
     try repeat rewrite and_assoc in Hp2.
-    assert (Hpost := (conj(conj (conj (conj (conj (conj (conj (conj H0 Hp1) 
-     Hp2) Hsplit) Hp3) Hp4) Hp5) Hnew) Hnew')).
+   assert (Hreadflag : isPartitionFalse childListSh1 idxConfigPagesList s ).
+   { unfold isPartitionFalse.
+    unfold consistency in *. 
+    assert(Haccessva : accessibleVAIsNotPartitionDescriptor s) by intuition.
+    unfold accessibleVAIsNotPartitionDescriptor in *.
+    assert (Hflag : getPDFlag currentShadow1 list s = false).
+    { apply Haccessva with currentPart currentPD phyConfigPagesList.
+      unfold consistency in *.
+      unfold currentPartitionInPartitionsList in *.
+      intuition.
+      subst;assumption.
+      apply nextEntryIsPPgetPd; intuition.
+      apply nextEntryIsPPgetFstShadow;intuition.
+      assert (pa entry = phyConfigPagesList).
+      apply isEntryPageLookupEq with ptConfigPagesList idxConfigPagesList s; trivial.
+      intuition.
+      subst.
+      repeat rewrite andb_true_iff in Hlegit.
+      intuition.
+      subst.      
+      apply isAccessibleMappedPage with ptConfigPagesList;trivial. }
+    apply getPDFlagReadPDflag with currentShadow1 list currentPart;intuition.
+    apply Nat.eqb_neq.
+    assert(Hfalsepge : (defaultPage =? childListSh1) = false) by trivial.
+    apply beq_nat_false in Hfalsepge.
+    unfold not;intros Hfalse'.
+    rewrite Hfalse' in Hfalsepge.    
+    now contradict Hfalsepge. }
+    assert (Hpost1 := conj (conj(conj(conj (conj (conj (conj (conj (conj (conj H0 Hp1) 
+     Hp2) Hsplit) Hp3) Hp4) Hp5) Hnew) Hnew')Hpdflag1 ) Hpdflag2).
+   assert (Hpost := conj Hpost1 Hreadflag). 
     pattern s in Hpost.
     match type of Hpost with 
     | ?HT s => instantiate (1 := fun tt s => HT s /\ 
@@ -3496,7 +3713,7 @@ eapply WP.bindRev.
                  present := present entry;
                  user := false;
                  pa := pa entry |}) (memory s) beqPage beqIndex |}) in *.
-    do 10 apply and_assoc.
+    do 13 apply and_assoc.
     split. 
   (** partitionsIsolation **) 
     assert (partitionsIsolation s ) as Hiso. intuition.
@@ -3565,12 +3782,12 @@ eapply WP.bindRev.
     split.
   (** Consistency **) 
     assert (Hcons : consistency s) by intuition. 
-    clear Hpost Hsplit H0.     
+    clear Hsplit H0.     
     unfold consistency in *.
     split. apply partitionDescriptorEntryUpdateUserFlag;trivial.
     intuition.
     destruct Hcons as (Hpe & Hpd & Hsh1 & Hsh2 & Hcurpartlist & 
-    Hnodupmapped & Hnodupconfig & Hparent).
+    Hnodupmapped & Hnodupconfig & Hparent & Hsh1struct ).
     repeat split; try  apply dataStructurePdSh1Sh2asRootUpdateUserFlag;intuition.
     unfold currentPartitionInPartitionsList in *.
     simpl in *. subst. 
@@ -3600,6 +3817,32 @@ eapply WP.bindRev.
     generalize (Hparent partition HgetParts); clear Hparent; intros Hparent; trivial.
     apply  nextEntryIsPPUpdateUserFlag' in  Hroot.
     apply Hparent; trivial.
+    (** accessibleVAIsNotPartitionDescriptor **)
+    unfold s'. 
+    subst.
+    apply accessibleVAIsNotPartitionDescriptorUpdateUserFlag with level
+    (currentPartition s) currentPD ;trivial.
+    assert(Hget : forall idx : index,
+      StateLib.getIndexOfAddr list fstLevel = idx ->
+      isPE ptConfigPagesList idx s /\ 
+      getTableAddrRoot ptConfigPagesList PDidx (currentPartition s) list s) by trivial.     
+    assert(isPE ptConfigPagesList (StateLib.getIndexOfAddr list fstLevel) s /\ 
+            getTableAddrRoot ptConfigPagesList PDidx (currentPartition s) list s)
+    as (_ & Hi).
+    apply Hget; trivial.
+    assumption.
+    apply nextEntryIsPPgetPd;trivial.
+    assert(Heq :pa entry = phyConfigPagesList).
+    apply isEntryPageLookupEq with ptConfigPagesList (StateLib.getIndexOfAddr list fstLevel) s;trivial.
+    rewrite Heq.
+    subst.
+    apply isAccessibleMappedPage with ptConfigPagesList;trivial.
+    repeat rewrite andb_true_iff in Hlegit.
+    intuition.
+    subst;trivial.
+    repeat rewrite andb_true_iff in Hlegit.
+    intuition.
+    subst;trivial.
     clear Hpost.
     rename H into Hcond. 
     assert (H := conj (conj (conj H0 Hfalse) Hsplit)  Hnew).
@@ -4028,9 +4271,13 @@ eapply WP.bindRev.
         assert(getPartitions multiplexer s' = getPartitions multiplexer s) as Hpartions.
         apply getPartitionsUpdateUserFlag; trivial.
         rewrite Hpartions in *. assumption. right; assumption.
+      * admit. (** prove new property to propagate **)
       * apply entryUserFlagUpdateUserFlagSameValue; trivial. 
+      * admit. (** prove new property to propagate **)
       * apply entryUserFlagUpdateUserFlagSameValue; trivial.
+      * admit. (** prove new property to propagate **)
       * apply entryUserFlagUpdateUserFlagSameValue; trivial.
+      * admit. (** prove new property to propagate **)
 (** New property **) 
       * unfold entryUserFlag. unfold s'.
         cbn.
@@ -4055,13 +4302,43 @@ eapply WP.bindRev.
       apply H1 in H2. intuition. }
     destruct Hlookup as (entry & Hlookup).
     exists entry ; split;trivial.
-    destruct H0 as ((((((((((H0 & Hp1)& Hp2) & Hp3)& Hp4)& Hp5) &Hp6) &Hp7) & Hp8) & Hnew )& Hnew').
+    destruct H0 as (((((((((((((H0 & Hp1)& Hp2) & Hp3)& Hp4)& Hp5) &Hp6) &Hp7) & Hp8) &
+     Hnew )& Hnew') & Hpdflag1) & Hpdflag2 ) & Hpdflag3).
     do 26 rewrite <- and_assoc in H0.
     destruct H0 as (H0 & Hsplit). 
     destruct H0 as (H0 & Hfalse). 
     try repeat rewrite and_assoc in H0.
-    assert (Hpost := (conj (conj (conj (conj(conj (conj (conj (conj (conj (conj (conj H0 Hsplit) Hp1) 
-     Hp2)  Hp3) Hp4) Hp5) Hp6) Hp7) Hp8) Hnew) Hnew')).
+    assert (Hpost1 :=conj( conj (conj(conj (conj (conj (conj(conj (conj (conj (conj (conj (conj (conj H0 Hsplit) Hp1) 
+     Hp2)  Hp3) Hp4) Hp5) Hp6) Hp7) Hp8) Hnew) Hnew')Hpdflag1)  Hpdflag2 )  Hpdflag3).
+    assert (Hreadflag : isPartitionFalse ptRefChildFromSh1 idxRefChild s ).
+   { unfold isPartitionFalse.
+    unfold consistency in *. 
+    assert(Haccessva : accessibleVAIsNotPartitionDescriptor s) by intuition.
+    unfold accessibleVAIsNotPartitionDescriptor in *.
+    assert (Hflag : getPDFlag currentShadow1 descChild s = false).
+    { apply Haccessva with currentPart currentPD phyDescChild.
+      unfold consistency in *.
+      unfold currentPartitionInPartitionsList in *.
+      intuition.
+      subst;assumption.
+      apply nextEntryIsPPgetPd; intuition.
+      apply nextEntryIsPPgetFstShadow;intuition.
+      assert (pa entry = phyDescChild).
+      apply isEntryPageLookupEq with ptRefChild idxRefChild s; trivial.
+      intuition.
+      subst.
+      repeat rewrite andb_true_iff in Hlegit.
+      intuition.
+      subst.      
+      apply isAccessibleMappedPage with ptRefChild;trivial. }
+    apply getPDFlagReadPDflag with currentShadow1 descChild currentPart;intuition.
+    apply Nat.eqb_neq.
+    assert(Hfalsepge : (defaultPage =? ptRefChildFromSh1) = false) by trivial.
+    apply beq_nat_false in Hfalsepge.
+    unfold not;intros Hfalse'.
+    rewrite Hfalse' in Hfalsepge.    
+    now contradict Hfalsepge. }
+    assert(Hpost := conj Hpost1 Hreadflag).
     pattern s in Hpost.
     match type of Hpost with 
     | ?HT s => instantiate (1 := fun tt s => HT s /\ 
@@ -4079,7 +4356,7 @@ eapply WP.bindRev.
                  present := present entry;
                  user := false;
                  pa := pa entry |}) (memory s) beqPage beqIndex |}) in *.
-    do 12 apply and_assoc. 
+    do 16 apply and_assoc. 
     split. 
   (** partitionsIsolation **) 
     assert (partitionsIsolation s ) as Hiso. intuition.
@@ -4148,12 +4425,12 @@ eapply WP.bindRev.
     split.
   (** Consistency **) 
     assert (Hcons : consistency s) by intuition. 
-    clear Hpost Hsplit H0.     
+    clear Hsplit H0.     
     unfold consistency in *.
     split. apply partitionDescriptorEntryUpdateUserFlag;trivial.
     intuition.
     destruct Hcons as (Hpe & Hpd & Hsh1 & Hsh2 & Hcurpartlist & 
-    Hnodupmapped & Hnodupconfig & Hparent).
+    Hnodupmapped & Hnodupconfig & Hparent & Hsh1struct).
     repeat split; try  apply dataStructurePdSh1Sh2asRootUpdateUserFlag;intuition.
     unfold currentPartitionInPartitionsList in *.
     simpl in *. subst. 
@@ -4183,6 +4460,32 @@ eapply WP.bindRev.
     generalize (Hparent partition HgetParts); clear Hparent; intros Hparent; trivial.
     apply  nextEntryIsPPUpdateUserFlag' in  Hroot.
     apply Hparent; trivial.
+    (** accessibleVAIsNotPartitionDescriptor **)
+    unfold s'.
+    subst.
+    apply accessibleVAIsNotPartitionDescriptorUpdateUserFlag with level
+    (currentPartition s) currentPD ;trivial.
+    assert(Hget : forall idx : index,
+      StateLib.getIndexOfAddr descChild fstLevel = idx ->
+      isPE ptRefChild idx s /\ 
+      getTableAddrRoot ptRefChild PDidx (currentPartition s) descChild s) by trivial.     
+    assert(isPE ptRefChild (StateLib.getIndexOfAddr descChild fstLevel) s /\ 
+            getTableAddrRoot ptRefChild PDidx (currentPartition s) descChild s)
+    as (_ & Hi).
+    apply Hget; trivial.
+    assumption.
+    apply nextEntryIsPPgetPd;trivial.
+    assert(Heq :pa entry = phyDescChild).
+    apply isEntryPageLookupEq with ptRefChild (StateLib.getIndexOfAddr descChild fstLevel) s;trivial.
+    rewrite Heq.
+    subst.
+    apply isAccessibleMappedPage with ptRefChild;trivial.
+    repeat rewrite andb_true_iff in Hlegit.
+    intuition.
+    subst;trivial.
+    repeat rewrite andb_true_iff in Hlegit.
+    intuition.
+    subst;trivial.
     clear Hpost.
     rename H into Hcond. 
     assert (H := conj (conj (conj H0 Hfalse) Hsplit)  Hnew).
@@ -4611,10 +4914,15 @@ eapply WP.bindRev.
         assert(getPartitions multiplexer s' = getPartitions multiplexer s) as Hpartions.
         apply getPartitionsUpdateUserFlag; trivial.
         rewrite Hpartions in *. assumption. right; assumption.
+      * admit. (** prove new property to propagate **)
       * apply entryUserFlagUpdateUserFlagSameValue; trivial. 
+      * admit. (** prove new property to propagate **)
       * apply entryUserFlagUpdateUserFlagSameValue; trivial.
+      * admit. (** prove new property to propagate **)
       * apply entryUserFlagUpdateUserFlagSameValue; trivial.
+      * admit. (** prove new property to propagate **)
       * apply entryUserFlagUpdateUserFlagSameValue; trivial.
+      * admit. (** prove new property to propagate **)
 (** New property **) 
       * unfold entryUserFlag. unfold s'.
         cbn.
@@ -7275,25 +7583,31 @@ intros [].
     split.
     assert (Hiso : partitionsIsolation s) by intuition.
     apply partitionsIsolationUpdtateSh1Structure with v0; trivial.
-    admit. (** Need new consistency property to prove the following goal:
-               StateLib.readPDflag ptPDChildSh1 idxPDChild (memory s) = Some false *)
+    assert(Hispart : isPartitionFalse ptPDChildSh1 idxPDChild s ) by intuition.
+    unfold isPartitionFalse in *.
+    assumption.
     (** kernelDataIsolation **)
     split.
     assert (Hkdi : kernelDataIsolation s) by intuition.
     apply kernelDataIsolationUpdtateSh1Structure with v0; trivial.
-    admit. (** Need new consistency property to prove the following goal:
-               StateLib.readPDflag ptPDChildSh1 idxPDChild (memory s) = Some false *)
+    assert(Hispart : isPartitionFalse ptPDChildSh1 idxPDChild s ) by intuition.
+    unfold isPartitionFalse in *.
+    assumption.
     (** VerticalSharing **)
     split.
     assert (Hvs : verticalSharing s) by intuition.
     apply verticalSharingUpdtateSh1Structure with v0; trivial.
-    admit. (** Need new consistency property to prove the following goal:
-               StateLib.readPDflag ptPDChildSh1 idxPDChild (memory s) = Some false *)
+    assert(Hispart : isPartitionFalse ptPDChildSh1 idxPDChild s ) by intuition.
+    unfold isPartitionFalse in *.
+    assumption.
     split.
+    (** consistency **)
     assert (Hcons : consistency s ) by intuition.
     apply consistencyUpdtateSh1Structure with v0; trivial.
-    admit. (** Need new consistency property to prove the following goal:
-               StateLib.readPDflag ptPDChildSh1 idxPDChild (memory s) = Some false *)
+    unfold consistency in *. 
+    assert(Hispart : isPartitionFalse ptPDChildSh1 idxPDChild s ) by intuition.
+    unfold isPartitionFalse in *.
+    assumption.
     (** Propagate properties **)
   { intuition try trivial. 
     + apply nextEntryIsPPAddDerivation with v0; trivial.
@@ -7372,8 +7686,9 @@ intros [].
                   (memory s) beqPage beqIndex |} = 
     getPartitions multiplexer s).
     { apply getPartitionsAddDerivation with v0; trivial.
-      admit. (** Need new consistency property to prove the following goal:
-               StateLib.readPDflag ptPDChildSh1 idxPDChild (memory s) = Some false *) }
+      assert(Hispart : isPartitionFalse ptPDChildSh1 idxPDChild s ) by intuition.
+      unfold isPartitionFalse in *.
+      assumption. }
    assert(Hconfig :forall partition,  getConfigPagesAux partition
             {|
             currentPartition := currentPartition s;
@@ -7521,10 +7836,15 @@ intros [].
       by intuition.
       apply Hi with partition;trivial.
       right;trivial.
+    + admit. (** prove new property to propagate **)
     + apply entryUserFlagAddDerivation with v0;trivial.
+    + admit. (** prove new property to propagate **)
     + apply entryUserFlagAddDerivation with v0;trivial.
+    + admit. (** prove new property to propagate **)
     + apply entryUserFlagAddDerivation with v0;trivial.
+    + admit. (** prove new property to propagate **)
     + apply entryUserFlagAddDerivation with v0;trivial.
+    + admit. (** prove new property to propagate **)
     + apply entryUserFlagAddDerivation with v0;trivial. }
   { intuition trivial.
     + assert(Hi : forall idx : index, StateLib.readPhyEntry phySh2Child idx (memory s) = 
@@ -7582,9 +7902,7 @@ intros [].
     cbn;trivial.
     intros [].
 (**  writeVirEntry **)   
-(** TODO : To be finished *)
-    
-    admit.
+    admit. (** TODO : To be finished *)
  - intros HNotlegit. 
    eapply WP.weaken. eapply WP.ret .
    simpl. intuition.

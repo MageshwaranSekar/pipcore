@@ -1194,17 +1194,21 @@ case_eq isMultiplexer.
     (** Consistency **) 
       assert (Hcons : consistency s) by intuition.  
       unfold consistency in *.
-      split. apply partitionDescriptorEntryUpdateUserFlag;trivial.
+      split.
+      (** partitionDescriptorEntry **)
+      apply partitionDescriptorEntryUpdateUserFlag;trivial.
       intuition.
+      (** dataStructurePdSh1Sh2asRoot **)
       destruct Hcons as (Hpe & Hpd & Hsh1 & Hsh2 & Hcurpartlist & 
-      Hnodupmapped & Hnodupconfig & Hparent).
+      Hnodupmapped & Hnodupconfig & Hparent & Hsh1struct).
       repeat split; try  apply dataStructurePdSh1Sh2asRootUpdateUserFlag;intuition.
+      (** currentPartitionInPartitionsList **)
       unfold currentPartitionInPartitionsList in *.
       simpl in *. subst. 
       assert(getPartitions multiplexer s' = getPartitions multiplexer s) as Hpartions.
       apply getPartitionsUpdateUserFlag; trivial.
       rewrite Hpartions. assumption.
-      
+      (** noDupMappedPagesList **)      
       unfold noDupMappedPagesList in *.
       intros partition HgetPartnewstate.
       assert ( getMappedPages partition s' = getMappedPages partition s) as Hmaps.
@@ -1219,6 +1223,7 @@ case_eq isMultiplexer.
       apply getPartitionsUpdateUserFlag;trivial.
       rewrite HgetPart in HgetPartnewstate.
       apply Hnodupmapped;assumption.
+      (** noDupConfigPagesList **)
       apply getIndirectionsNoDupUpdateUserFlag; trivial.
       unfold parentInPartitionList in *.
       assert (getPartitions multiplexer s' = getPartitions multiplexer s) as HgetPart.
@@ -1228,7 +1233,10 @@ case_eq isMultiplexer.
       generalize (Hparent partition HgetParts); clear Hparent; intros Hparent; trivial.
       apply  nextEntryIsPPUpdateUserFlag' in  Hroot.
       apply Hparent; trivial.
-      rename H into Hcond. 
+      (** accessibleVAIsNotPartitionDescriptor **)
+      admit. (** Prove the accessibleVAIsNotPartitionDescriptor property, 
+                 NEED NEW CONSISTENCY PROPERTY *)
+      rename H into Hcond.
   (** Propagated properties **)
       assert(Hi2 : StateLib.getIndexOfAddr va fstLevel = lastIndex) by intuition.
       { try repeat split;intuition try eassumption. 
@@ -1259,13 +1267,7 @@ case_eq isMultiplexer.
           rewrite <- Hind.
           apply getIndirectionUpdateUserFlag;trivial.
         + apply entryPresentFlagUpdateUserFlag;assumption.
-        + (* unfold s'.
-          assert(ptRefChild <> ptvaInAncestor).
-          { (** disjoint (getConfigPages ancestor s) (getConfigPages child s) **) 
-            admit. }
-          apply entryUserFlagUpdateUserFlagRandomValue; trivial.
-          left; assumption.
-        + *) assert(Hi3 : forall idx : index,
+        + assert(Hi3 : forall idx : index,
                         StateLib.getIndexOfAddr pdChild fstLevel = idx ->
                         isPE ptPDChild idx s /\ 
                         getTableAddrRoot ptPDChild PDidx currentPart pdChild s) by trivial.
@@ -1315,11 +1317,6 @@ case_eq isMultiplexer.
           rewrite <- Hind.
           apply getIndirectionUpdateUserFlag;trivial.
         + apply entryPresentFlagUpdateUserFlag;assumption.
-       (*  + assert(ptSh1Child <> ptvaInAncestor).
-          { (** disjoint (getConfigPages ancestor s) (getConfigPages child s) **) 
-          admit. }
-          apply entryUserFlagUpdateUserFlagRandomValue; trivial.
-          left; assumption. *)
         + assert(Hi1 : forall idx : index,
                         StateLib.getIndexOfAddr shadow2 fstLevel = idx ->
                         isPE ptSh2Child idx s /\ 
@@ -1344,11 +1341,6 @@ case_eq isMultiplexer.
           rewrite <- Hind.
           apply getIndirectionUpdateUserFlag;trivial. 
         + apply entryPresentFlagUpdateUserFlag;assumption.
-        (* + assert(ptSh2Child <> ptvaInAncestor).
-          { (** disjoint (getConfigPages ancestor s) (getConfigPages child s) **) 
-          admit. }
-          apply entryUserFlagUpdateUserFlagRandomValue; trivial.
-          left; assumption. *)
         + assert(Hi : forall idx : index,
                         StateLib.getIndexOfAddr list fstLevel = idx ->
                         isPE ptConfigPagesList idx s /\ 
@@ -1374,11 +1366,6 @@ case_eq isMultiplexer.
           exists stop; split; trivial.
           apply getIndirectionUpdateUserFlag;trivial.
         + apply entryPresentFlagUpdateUserFlag;assumption.
-       (*  + assert(ptConfigPagesList <> ptvaInAncestor).
-          { (** disjoint (getConfigPages ancestor s) (getConfigPages child s) **) 
-          admit. }
-          apply entryUserFlagUpdateUserFlagRandomValue; trivial.
-          left; assumption . *)
         + apply nextEntryIsPPUpdateUserFlag;assumption.  
         + assert(Hi : forall idx : index,
                       StateLib.getIndexOfAddr descChild fstLevel = idx ->
@@ -1651,10 +1638,15 @@ case_eq isMultiplexer.
         apply getConfigPagesUpdateUserFlag; trivial.
         rewrite Hconfig in *.
         assumption.
+      + admit. (** prove new property to propagate **)
       + apply entryUserFlagUpdateUserFlagSameValue; intuition.
+      + admit. (** prove new property to propagate **)
       + apply entryUserFlagUpdateUserFlagSameValue; intuition.
+      + admit. (** prove new property to propagate **)
       + apply entryUserFlagUpdateUserFlagSameValue; intuition.
+      + admit. (** prove new property to propagate **)     
       + apply entryUserFlagUpdateUserFlagSameValue; intuition.
+      + admit. (** prove new property to propagate **)
       + apply entryUserFlagUpdateUserFlagSameValue; intuition. }
 (** Internal properties to propagate **)      
         + destruct H.  
@@ -1675,8 +1667,6 @@ case_eq isMultiplexer.
                   isVA ptsh2 idx s /\ getTableAddrRoot ptsh2 sh2idx descParent va s) by trivial.
           generalize (Hi lastIndex Hi2); clear H7; intros (_ & H7). 
           unfold getTableAddrRoot in *.
-          (* assert(Hi3 : nextEntryIsPP descParent sh2idx tableroot s') by trivial.
-          apply nextEntryIsPPUpdateUserFlag' in Hi3. *)
           destruct H7 as (Htrue & Htableroot).
           split; trivial.
           intros.
@@ -1782,5 +1772,5 @@ case_eq isMultiplexer.
   eapply WP.ret.
   intros.
   simpl. intuition. 
-Qed.
+Admitted.
 

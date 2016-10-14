@@ -505,32 +505,22 @@ apply getMappedPagesAuxUpdateMappedPageData with level; trivial.
       rewrite <- Hpdchild1; trivial. }
 Qed.
 
-Lemma getAccessibleMappedPagesAuxUpdateMappedPageData pd table idx listVA s nbL x :
+Lemma getAccessibleMappedPageUpdateMappedPageData  pd table idx s nbL x va:
 table <> defaultPage -> pd <> defaultPage ->
 ~ In table (getIndirectionsAux pd s nbLevel) ->
 Some nbL = StateLib.getNbLevel -> 
-getAccessibleMappedPagesAux pd listVA
-  {|
-  currentPartition := currentPartition s;
-  memory := add table idx x (memory s) beqPage
-              beqIndex |} =
-getAccessibleMappedPagesAux pd listVA s.
+getAccessibleMappedPage pd
+  {| currentPartition := currentPartition s; memory := add table idx x (memory s) beqPage beqIndex |} va =
+getAccessibleMappedPage pd s va.
 Proof.
 intros Htablenotnull Hpdnotnull Hindirections HnbL.
-unfold getAccessibleMappedPagesAux.
-f_equal.
-unfold getAccessibleMappedPagesOption.
-revert pd Hindirections Htablenotnull Hpdnotnull.
-induction listVA;simpl;intros;trivial.
-rewrite IHlistVA; trivial.
-f_equal.
 unfold getAccessibleMappedPage.
 rewrite <- HnbL.
-assert(Hind : getIndirection pd a nbL (nbLevel - 1)
+assert(Hind : getIndirection pd va nbL (nbLevel - 1)
     {|
     currentPartition := currentPartition s;
     memory := add table idx x
-                (memory s) beqPage beqIndex |} = getIndirection pd a nbL (nbLevel - 1) s).
+                (memory s) beqPage beqIndex |} = getIndirection pd va nbL (nbLevel - 1) s).
 apply getIndirectionUpdateMappedPageData with nbL; auto.
 assert(0<nbLevel) by apply nbLevelNotZero.
 assert( (S (nbLevel - 1)) = nbLevel) by omega.
@@ -538,16 +528,15 @@ rewrite H0.
 assumption.
 subst.
 rewrite Hind.
-case_eq (getIndirection pd a nbL (nbLevel - 1) s); intros; trivial.
+case_eq (getIndirection pd va nbL (nbLevel - 1) s); intros; trivial.
 cbn.            
-set(curidx := (StateLib.getIndexOfAddr a fstLevel)) in *.
+set(curidx := (StateLib.getIndexOfAddr va fstLevel)) in *.
 assert(p <> table).
-clear IHlistVA.
 unfold not in *.
 intros.
 subst.
 apply Hindirections.
-apply getIndirectionInGetIndirections with a nbL (nbLevel -1); trivial.
+apply getIndirectionInGetIndirections with va nbL (nbLevel -1); trivial.
 apply nbLevelNotZero.
 apply getNbLevelLe; trivial.
 assert(Hpres : StateLib.readPresent p curidx
@@ -591,6 +580,29 @@ assert(Haccess : StateLib.readAccessible p curidx
               = lookup p curidx (memory s) beqPage beqIndex) as Hmemory.
       { apply removeDupIdentity. subst.  intuition. }
     rewrite  Hmemory; clear Hmemory; reflexivity.
+Qed.
+      
+         
+Lemma getAccessibleMappedPagesAuxUpdateMappedPageData pd table idx listVA s nbL x :
+table <> defaultPage -> pd <> defaultPage ->
+~ In table (getIndirectionsAux pd s nbLevel) ->
+Some nbL = StateLib.getNbLevel -> 
+getAccessibleMappedPagesAux pd listVA
+  {|
+  currentPartition := currentPartition s;
+  memory := add table idx x (memory s) beqPage
+              beqIndex |} =
+getAccessibleMappedPagesAux pd listVA s.
+Proof.
+intros Htablenotnull Hpdnotnull Hindirections HnbL.
+unfold getAccessibleMappedPagesAux.
+f_equal.
+unfold getAccessibleMappedPagesOption.
+revert pd Hindirections Htablenotnull Hpdnotnull.
+induction listVA;simpl;intros;trivial.
+rewrite IHlistVA; trivial.
+f_equal.
+apply getAccessibleMappedPageUpdateMappedPageData with nbL; trivial.
 Qed.
 
 Lemma getAccessibleMappedPagesUpdateMappedPageData partition (table : page) 
@@ -1782,6 +1794,78 @@ assert(Hin : In phy1 (getMappedPages partition s)).
   apply checkVAddrsEqualityWOOffsetEqFalse with level level;trivial.
 Qed.
 
+Lemma readPDflagUpdateMappedPageData table1 table2 idx1 idx2 x s :
+table1 <> table2 -> 
+StateLib.readPDflag table1 idx1 (add table2 idx2 x (memory s) beqPage beqIndex) =
+StateLib.readPDflag table1 idx1 (memory s).
+Proof.
+intros.
+unfold StateLib.readPDflag .
+cbn.
+assert(Hfalse : beqPairs (table2, idx2) (table1, idx1) beqPage beqIndex = false).
+{ apply beqPairsFalse;intuition. }
+rewrite Hfalse.
+assert(Hmemory : lookup table1 idx1 (removeDup table2 idx2 (memory s) beqPage beqIndex) 
+         beqPage beqIndex = lookup table1 idx1 (memory s) beqPage beqIndex).
+{ apply removeDupIdentity;intuition. }
+rewrite Hmemory.
+trivial.
+Qed.
+
+Lemma getPDFlagUpdateMappedPageData partition table curidx sh1 va x s:
+  nextEntryIsPP partition sh1idx sh1 s  -> 
+  In partition (getPartitions multiplexer s) -> 
+  partitionDescriptorEntry s -> 
+  ~ In table (getIndirectionsAux sh1 s (S (nbLevel - 1))) -> 
+getPDFlag sh1 va
+{| currentPartition := currentPartition s; memory := add table curidx x (memory s) beqPage beqIndex |} = 
+getPDFlag sh1 va s.
+Proof.
+intros Hpp Hpart Hpde Hnotconfig.
+unfold getPDFlag.
+case_eq (StateLib.getNbLevel); intros;trivial.
+assert(Hind: getIndirection sh1 va l (nbLevel - 1)
+              {| currentPartition := currentPartition s; 
+                  memory := add table curidx x (memory s) beqPage beqIndex |} 
+              = getIndirection sh1 va l (nbLevel - 1) s).
+ apply getIndirectionUpdateMappedPageData  with l;intuition.
+rewrite Hind.
+case_eq(getIndirection sh1 va l (nbLevel - 1) s);intros;trivial.
+case_eq (p =? defaultPage);intros;trivial.
+cbn.
+assert (In p (getIndirectionsAux sh1 s nbLevel)).
+{ apply getIndirectionInGetIndirections with va l (nbLevel - 1); trivial.
+  assert(0 <nbLevel) by apply nbLevelNotZero.
+  omega.
+  apply beq_nat_false in H1.
+  unfold not;intros;subst.
+  now contradict H1.
+  symmetry in H.
+  apply getNbLevelLe in H; trivial.
+  unfold partitionDescriptorEntry in Hpde.
+  assert(Hentry : exists entry : page, nextEntryIsPP partition sh1idx entry s /\
+         entry <> defaultPage).
+  apply Hpde; trivial.
+  intuition.
+  destruct Hentry as ( entry & Hentry & Hnotnul).
+  unfold nextEntryIsPP in * .
+  destruct (StateLib.Index.succ sh1idx ); 
+  [| now contradict Hentry].
+  destruct (lookup partition i (memory s) beqPage beqIndex);
+  [| now contradict Hentry].
+  destruct v; try now contradict Hentry.
+  subst. assumption. }
+assert(StateLib.readPDflag p (StateLib.getIndexOfAddr va fstLevel)
+        (add table curidx x (memory s) beqPage beqIndex) =
+       StateLib.readPDflag p (StateLib.getIndexOfAddr va fstLevel) (memory s)).
+{ apply readPDflagUpdateMappedPageData; trivial.
+  unfold not;intros;subst.
+  assert(0<nbLevel) by apply nbLevelNotZero.
+  replace (S (nbLevel - 1)) with nbLevel in * by omega.
+  now contradict Hnotconfig. }
+rewrite H3.
+trivial.
+Qed.
 
 Lemma propagatedPropertiesUpdateMappedPageData curidx x table pdChild currentPart 
 currentPD level ptRefChild descChild idxRefChild presentRefChild ptPDChild
@@ -2167,6 +2251,7 @@ set (s' := {|
       right; trivial.
       apply nextEntryIsPPgetSndShadow; trivial. }
   (** parentInPartitionList **) 
+    split.
     unfold parentInPartitionList in *.
     intros.
     rewrite Hpartions in *.
@@ -2175,7 +2260,59 @@ set (s' := {|
     unfold s' in *; eassumption.
     apply Hconfig.
     apply Hfalse.
-    apply Hparent with partition;trivial. } 
+    apply Hparent with partition;trivial.
+  (** accessibleVAIsNotPartitionDescriptor **)
+    assert(Hnotpart : accessibleVAIsNotPartitionDescriptor s) by intuition.
+    unfold s'.
+    unfold  accessibleVAIsNotPartitionDescriptor in *.
+    intros.
+    cbn in *.
+    unfold s' in Hpartions.
+    rewrite Hpartions in *.
+    assert(table <> partition).
+    { unfold not;intros.
+      subst.
+       apply Hconfig in H2.
+      now contradict H2.
+      left;trivial. }
+    rewrite getFstShadowUpdateMappedPageData in *;trivial.
+    assert(Hpd : StateLib.getPd partition (add table curidx x (memory s) beqPage beqIndex)  =
+              StateLib.getPd partition (memory s)).
+        apply getPdUpdateMappedPageData;trivial.
+        rewrite Hpd in *.
+    assert(Hacc : getAccessibleMappedPage pd
+       {|
+       currentPartition := currentPartition s;
+       memory := add table curidx x (memory s) beqPage beqIndex |} va =
+       getAccessibleMappedPage pd s va).  
+    { apply getAccessibleMappedPageUpdateMappedPageData with level;trivial.
+      + apply beq_nat_false in Hfalse.
+        unfold not; intros.
+        apply Hfalse.
+        subst;trivial.
+      + unfold consistency in *.
+        unfold partitionDescriptorEntry in Hpde.
+        apply Hpde  with partition PDidx in H2; clear Hpde.
+        destruct H2 as (_ & _ & entrypd & Hpp & Hnotnul).
+        assert (Heq : entrypd = pd).
+        apply getPdNextEntryIsPPEq with partition s; trivial.
+        rewrite <- Heq; assumption.
+       left; trivial.
+      + generalize (Hconfig partition H2); clear Hconfig; intros Hconfig.
+            apply Classical_Prop.not_or_and in Hconfig.
+            destruct Hconfig as (Hi1 & Hi2).
+            apply notConfigTableNotPdconfigTable with partition; trivial.    
+      + intuition. }
+    rewrite Hacc in *.
+    rewrite  getPDFlagUpdateMappedPageData with  partition table curidx  sh1 va x s; trivial.
+    apply Hnotpart with partition pd page; trivial.
+    apply nextEntryIsPPgetFstShadow;trivial.
+    assert(0<nbLevel) by apply nbLevelNotZero.
+    replace (S (nbLevel - 1)) with nbLevel by omega.
+    apply notConfigTableNotSh1configTable with partition;trivial.
+    unfold not; intros.
+    apply Hconfig with partition;trivial.
+    right; assumption. } 
 (** Propagated properties **)
   {
     unfold consistency in *.
@@ -2621,19 +2758,24 @@ set (s' := {|
       intros Hfalse. 
       apply Hconfigpd with partition; trivial.
             rewrite Hpartions in *; trivial.
+    + admit. (** prove new property to propagate **)
     + apply entryUserFlagUpdateMappedPageData; trivial.
       apply mappedPageIsNotPTable with currentPart currentPD pdChild idxPDChild s ;
       trivial.
+    + admit. (** prove new property to propagate **)
     + apply entryUserFlagUpdateMappedPageData; trivial.
       apply mappedPageIsNotPTable with currentPart currentPD shadow1 idxSh1 s ;
       trivial.
+    + admit. (** prove new property to propagate **)
     + apply entryUserFlagUpdateMappedPageData; trivial. 
       apply mappedPageIsNotPTable with currentPart currentPD shadow2 idxSh2 s ;
       trivial.
+    + admit. (** prove new property to propagate **)
     + apply entryUserFlagUpdateMappedPageData; trivial.
       apply mappedPageIsNotPTable with currentPart currentPD list idxConfigPagesList s ;
       trivial.
+    + admit. (** prove new property to propagate **)
     + apply entryUserFlagUpdateMappedPageData; trivial.
       apply mappedPageIsNotPTable with currentPart currentPD descChild idxRefChild s ;
       trivial. }
-Qed.
+Admitted.

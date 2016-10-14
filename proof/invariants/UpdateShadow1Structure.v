@@ -207,7 +207,8 @@ Qed.
 
 Lemma checkChildAddDerivation (descChild : vaddr) 
 table idx (s : state) partition nbL va entry : 
-StateLib.readPDflag table idx (memory s) = Some false -> 
+(StateLib.readPDflag table idx (memory s) = Some false \/ 
+StateLib.readPDflag table idx (memory s) = None) ->
 lookup table idx (memory s) beqPage beqIndex = Some (VE entry) ->  
 checkChild partition nbL
   {|
@@ -242,7 +243,11 @@ assert (StateLib.readPDflag sh1LastEntry (StateLib.getIndexOfAddr va fstLevel) (
   + apply beqPairsTrue in H0.
     destruct H0.
     subst.
+    destruct Hreadpdflag.
+    
     symmetry; assumption.
+    rewrite Hentry in H0.
+    now contradict H0.
   + apply beqPairsFalse in H0.
     assert(Hmemory: lookup sh1LastEntry (StateLib.getIndexOfAddr va fstLevel)
                    (removeDup table idx (memory s) beqPage beqIndex)beqPage beqIndex = 
@@ -257,7 +262,8 @@ Qed.
 Lemma getPdsVAddrAddDerivation (descChild : vaddr) 
 table idx (s : state) partition nbL entry :
 lookup table idx (memory s) beqPage beqIndex = Some (VE entry) ->  
-StateLib.readPDflag table idx (memory s) = Some false -> 
+(StateLib.readPDflag table idx (memory s) = Some false \/ 
+StateLib.readPDflag table idx (memory s) = None) ->
 getPdsVAddr partition nbL getAllVAddr
   {|
   currentPartition := currentPartition s;
@@ -486,7 +492,8 @@ Qed.
 Lemma getChildrenAddDerivation partition (descChild : vaddr) 
 table idx entry (s : state):
 lookup table idx (memory s) beqPage beqIndex = Some (VE entry) ->  
-StateLib.readPDflag table idx (memory s) = Some false -> 
+(StateLib.readPDflag table idx (memory s) = Some false \/ 
+StateLib.readPDflag table idx (memory s) = None) ->
 getChildren partition
   {|
   currentPartition := currentPartition s;
@@ -517,7 +524,8 @@ Qed.
 Lemma getPartitionAuxAddDerivation partition (descChild : vaddr) 
 table idx entry (s : state):
 lookup table idx (memory s) beqPage beqIndex = Some (VE entry) ->  
-StateLib.readPDflag table idx (memory s) = Some false -> 
+(StateLib.readPDflag table idx (memory s) = Some false \/ 
+StateLib.readPDflag table idx (memory s) = None) ->
 getPartitionAux partition 
     {| currentPartition := currentPartition s;
        memory := add table idx (VE {| pd := false; va := descChild |}) 
@@ -549,7 +557,8 @@ Qed.
 
 Lemma getPartitionsAddDerivation (descChild : vaddr) table idx entry (s : state):
 lookup table idx (memory s) beqPage beqIndex = Some (VE entry) ->  
-StateLib.readPDflag table idx (memory s) = Some false -> 
+(StateLib.readPDflag table idx (memory s) = Some false \/ 
+StateLib.readPDflag table idx (memory s) = None) -> 
 getPartitions multiplexer
           {|
           currentPartition := currentPartition s;
@@ -724,7 +733,8 @@ Qed.
 
 Lemma partitionsIsolationUpdtateSh1Structure (descChild : vaddr) table idx entry (s : state):
 lookup table idx (memory s) beqPage beqIndex = Some (VE entry) -> 
-StateLib.readPDflag table idx (memory s) = Some false ->  
+(StateLib.readPDflag table idx (memory s) = Some false \/ 
+StateLib.readPDflag table idx (memory s) = None )->  
 partitionsIsolation s -> 
 partitionsIsolation
   {|
@@ -848,7 +858,8 @@ Qed.
 
 Lemma  kernelDataIsolationUpdtateSh1Structure (descChild : vaddr) table idx entry (s : state):
 lookup table idx (memory s) beqPage beqIndex = Some (VE entry) -> 
-StateLib.readPDflag table idx (memory s) = Some false ->  
+(StateLib.readPDflag table idx (memory s) = Some false \/ 
+StateLib.readPDflag table idx (memory s) = None) ->
  kernelDataIsolation s -> 
  kernelDataIsolation 
   {|
@@ -883,7 +894,8 @@ Qed.
 
 Lemma verticalSharingUpdtateSh1Structure (descChild : vaddr) table idx entry (s : state):
 lookup table idx (memory s) beqPage beqIndex = Some (VE entry) -> 
-StateLib.readPDflag table idx (memory s) = Some false ->  
+(StateLib.readPDflag table idx (memory s) = Some false \/ 
+StateLib.readPDflag table idx (memory s) = None) -> 
 verticalSharing s -> 
 verticalSharing
   {|
@@ -1027,7 +1039,8 @@ Qed.
 
 Lemma partitionDescriptorEntryAddDerivation idx table descChild entry s:
 lookup table idx (memory s) beqPage beqIndex = Some (VE entry) -> 
-StateLib.readPDflag table idx (memory s) = Some false -> 
+(StateLib.readPDflag table idx (memory s) = Some false \/ 
+StateLib.readPDflag table idx (memory s) = None) -> 
 partitionDescriptorEntry s -> 
 partitionDescriptorEntry
   {|
@@ -1061,7 +1074,8 @@ Qed.
 
 Lemma dataStructurePdSh1Sh2asRootAddDerivation descChild idxroot s table idx entry :
 lookup table idx (memory s) beqPage beqIndex = Some (VE entry) -> 
-StateLib.readPDflag table idx (memory s) = Some false -> 
+(StateLib.readPDflag table idx (memory s) = Some false \/ 
+StateLib.readPDflag table idx (memory s) = None) ->
 dataStructurePdSh1Sh2asRoot idxroot s ->
 dataStructurePdSh1Sh2asRoot  idxroot
   {|
@@ -1113,7 +1127,8 @@ Qed.
 
 Lemma currentPartitionInPartitionsListAddDerivation  descChild s table idx entry :
 lookup table idx (memory s) beqPage beqIndex = Some (VE entry) -> 
-StateLib.readPDflag table idx (memory s) = Some false -> 
+(StateLib.readPDflag table idx (memory s) = Some false \/ 
+StateLib.readPDflag table idx (memory s) = None) ->
 currentPartitionInPartitionsList s ->
 currentPartitionInPartitionsList
   {|
@@ -1135,7 +1150,8 @@ Qed.
 
 Lemma noDupMappedPagesListAddDerivation descChild s table idx entry :
 lookup table idx (memory s) beqPage beqIndex = Some (VE entry) -> 
-StateLib.readPDflag table idx (memory s) = Some false ->  
+(StateLib.readPDflag table idx (memory s) = Some false \/ 
+StateLib.readPDflag table idx (memory s) = None) ->
 noDupMappedPagesList s ->
 noDupMappedPagesList
   {|
@@ -1166,7 +1182,8 @@ Qed.
 
 Lemma noDupConfigPagesListAddDerivation descChild s table idx entry :
 lookup table idx (memory s) beqPage beqIndex = Some (VE entry) -> 
-StateLib.readPDflag table idx (memory s) = Some false ->  
+(StateLib.readPDflag table idx (memory s) = Some false \/ 
+StateLib.readPDflag table idx (memory s) = None) ->
 noDupConfigPagesList s ->
 noDupConfigPagesList
   {|
@@ -1196,7 +1213,8 @@ Qed.
 
 Lemma parentInPartitionListAddDerivation descChild s table idx entry :
 lookup table idx (memory s) beqPage beqIndex = Some (VE entry) -> 
-StateLib.readPDflag table idx (memory s) = Some false ->  
+(StateLib.readPDflag table idx (memory s) = Some false \/ 
+StateLib.readPDflag table idx (memory s) = None) ->
 parentInPartitionList s ->
 parentInPartitionList
   {|
@@ -1218,9 +1236,115 @@ rewrite <- nextEntryIsPPAddDerivation with entry in H1; trivial.
 apply H with partition; trivial.
 Qed.
 
+Lemma getPDFlagAddDerivation sh1 va descChild table idx entry s:
+lookup table idx (memory s) beqPage beqIndex = Some (VE entry) ->
+(StateLib.readPDflag table idx (memory s) = Some false \/ 
+StateLib.readPDflag table idx (memory s) = None) ->
+getPDFlag sh1 va
+  {|
+  currentPartition := currentPartition s;
+  memory := add table idx (VE {| pd := false; va := descChild |}) 
+  (memory s) beqPage beqIndex |} = getPDFlag sh1 va s.
+Proof.
+intros Hentry;
+unfold getPDFlag.
+case_eq( StateLib.getNbLevel);intros;trivial.
+assert(Hind :getIndirection sh1 va l (nbLevel - 1)
+          {|
+          currentPartition := currentPartition s;
+          memory := add table idx (VE {| pd := false; va := descChild |}) 
+          (memory s) beqPage beqIndex |} = 
+      getIndirection sh1 va l (nbLevel - 1) s).
+apply getIndirectionAddDerivation with entry;trivial.
+rewrite Hind;clear Hind.
+case_eq( getIndirection sh1 va l (nbLevel - 1) s);intros;trivial.
+case_eq(p =? defaultPage);intros;trivial.
+cbn.
+
+assert(StateLib.readPDflag p (StateLib.getIndexOfAddr va fstLevel)
+    (add table idx (VE {| pd := false; va := descChild |}) (memory s) beqPage beqIndex) = 
+    StateLib.readPDflag p (StateLib.getIndexOfAddr va fstLevel) (memory s) ).
+{ unfold StateLib.readPDflag in *.
+cbn.
+case_eq(beqPairs (table, idx) (p, StateLib.getIndexOfAddr va fstLevel) beqPage beqIndex);
+intros Hpairs.
++ apply beqPairsTrue in Hpairs.
+  destruct Hpairs.
+  subst.
+  rewrite Hentry in *.
+  cbn.
+  destruct H0;
+  symmetry. assumption.
+  now contradict H0.
++ apply beqPairsFalse in Hpairs.
+  assert(Hmemory: lookup p (StateLib.getIndexOfAddr va fstLevel) (removeDup table idx (memory s) beqPage beqIndex)
+    beqPage beqIndex = lookup p (StateLib.getIndexOfAddr va fstLevel) (memory s) beqPage beqIndex).
+    apply removeDupIdentity;intuition.
+   rewrite Hmemory.
+   trivial. }
+   rewrite H3;trivial.
+Qed.
+
+Lemma accessibleVAIsNotPartitionDescriptorAddDerivation descChild s table idx entry :
+lookup table idx (memory s) beqPage beqIndex = Some (VE entry) -> 
+(StateLib.readPDflag table idx (memory s) = Some false \/ 
+StateLib.readPDflag table idx (memory s) = None) ->
+accessibleVAIsNotPartitionDescriptor s -> 
+accessibleVAIsNotPartitionDescriptor
+  {|
+  currentPartition := currentPartition s;
+  memory := add table idx (VE {| pd := false; va := descChild |}) (memory s) beqPage beqIndex |}.
+Proof.
+intros Hentry Hpdflag.
+unfold accessibleVAIsNotPartitionDescriptor.
+intros.
+assert(Hpd : StateLib.getPd partition
+        (memory
+           {|
+           currentPartition := currentPartition s;
+           memory := add table idx (VE {| pd := false; va := descChild |})
+            (memory s) beqPage beqIndex |}) =
+       StateLib.getPd partition (memory s)).
+apply getPdAddDerivation with entry;trivial.
+rewrite Hpd in *;clear Hpd.
+assert(Hsh1 : StateLib.getFstShadow partition
+        (memory
+           {|
+           currentPartition := currentPartition s;
+           memory := add table idx (VE {| pd := false; va := descChild |})
+            (memory s) beqPage beqIndex |}) =
+       StateLib.getFstShadow partition (memory s)).
+apply getFstShadowAddDerivation with entry;trivial.
+rewrite Hsh1 in *;clear Hsh1.
+assert(Haccess : getAccessibleMappedPage pd
+                  {|
+                  currentPartition := currentPartition s;
+                  memory := add table idx (VE {| pd := false; va := descChild |}) 
+                  (memory s) beqPage beqIndex |} va =
+                getAccessibleMappedPage pd s va).
+apply getAccessibleMappedPageAddDerivation with entry ;trivial.
+rewrite Haccess in *;clear Haccess.
+assert(Hpart : getPartitions multiplexer
+                  {|
+                  currentPartition := currentPartition s;
+                  memory := add table idx (VE {| pd := false; va := descChild |}) 
+                  (memory s) beqPage beqIndex |} = getPartitions multiplexer s).
+apply getPartitionsAddDerivation with entry;trivial.
+rewrite Hpart in *;clear Hpart.
+assert(getPDFlag sh1 va
+  {|
+  currentPartition := currentPartition s;
+  memory := add table idx (VE {| pd := false; va := descChild |}) (memory s) beqPage beqIndex |} 
+  = getPDFlag sh1 va s).
+apply getPDFlagAddDerivation with entry;trivial.
+rewrite H4.
+apply H with partition pd page;trivial.
+Qed.
+
 Lemma consistencyUpdtateSh1Structure (descChild : vaddr) table idx entry (s : state):
 lookup table idx (memory s) beqPage beqIndex = Some (VE entry) -> 
-StateLib.readPDflag table idx (memory s) = Some false ->  
+(StateLib.readPDflag table idx (memory s) = Some false \/ 
+StateLib.readPDflag table idx (memory s) = None) ->
 consistency s -> 
 consistency
   {|
@@ -1244,7 +1368,9 @@ split.
 apply noDupMappedPagesListAddDerivation with entry; intuition.
 split.
 apply noDupConfigPagesListAddDerivation with entry; intuition.
+split.
 apply parentInPartitionListAddDerivation with entry; intuition.
+apply accessibleVAIsNotPartitionDescriptorAddDerivation with entry; intuition.
 Qed.
 
 Lemma getTableRootAddDerivation table1 idx1 table2 idx2 partition   

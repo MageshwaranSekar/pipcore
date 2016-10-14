@@ -377,6 +377,45 @@ unfold StateLib.readPhyEntry.
 rewrite H2;trivial.
 Qed.
 
+Lemma getPDFlagUpdateCurrentPartition sh1 va phyVA s:
+getPDFlag sh1 va {| currentPartition := phyVA; memory := memory s |}  = 
+ getPDFlag sh1 va s.
+Proof.
+unfold getPDFlag.
+case_eq (StateLib.getNbLevel); intros;trivial.
+assert(Hind: getIndirection sh1 va l (nbLevel - 1)
+              {| currentPartition := phyVA; memory := memory s |} 
+              = getIndirection sh1 va l (nbLevel - 1) s).
+symmetry.
+ apply getIndirectionUpdateCurrentPartition.
+rewrite Hind.
+case_eq(getIndirection sh1 va l (nbLevel - 1) s);intros;trivial.
+Qed.
+
+Lemma accessibleVAIsNotPartitionDescriptorUpdateCurrentDescriptor phyVA s:
+accessibleVAIsNotPartitionDescriptor s -> 
+accessibleVAIsNotPartitionDescriptor {| currentPartition := phyVA; memory := memory s |}.
+Proof.
+unfold accessibleVAIsNotPartitionDescriptor.
+cbn.
+intros.
+assert (getPartitions multiplexer {| currentPartition := phyVA; memory := memory s |} = 
+        getPartitions multiplexer s).
+symmetry.
+apply getPartitionsUpdateCurrentDescriptor.
+rewrite H4 in *;clear H4.
+assert(getAccessibleMappedPage pd {| currentPartition := phyVA; memory := memory s |} va =
+      getAccessibleMappedPage pd s va).
+symmetry.
+apply getAccessibleMappedPageUpdateCurrentPartition.
+rewrite H4 in *;clear H4.
+assert(getPDFlag sh1 va {| currentPartition := phyVA; memory := memory s |}   = 
+getPDFlag sh1 va s ).
+apply getPDFlagUpdateCurrentPartition.
+rewrite H4 in *;clear H4.
+apply H with partition pd page ;trivial.
+Qed.
+
 Lemma activateChild descChild vaNotNulll currPart
 root isMultiplexer nbL  ptpd lastIndex phyVA pd: 
 {{ fun s : state =>((((((((((((partitionsIsolation s /\ kernelDataIsolation s /\ verticalSharing s /\ consistency s) /\
@@ -487,13 +526,14 @@ split.
           rewrite getPartitionsUpdateCurrentDescriptor with s phyVA multiplexer; trivial. 
         + unfold parentInPartitionList in *.
           intros. 
-          destruct Hcons as (_ & _& _& _ & _ & _ & _ & Hparent ).
+          destruct Hcons as (_ & _& _& _ & _ & _ & _ & Hparent & _ ).
           rewrite  <-getPartitionsUpdateCurrentDescriptor with s phyVA multiplexer.
           rewrite  <-getPartitionsUpdateCurrentDescriptor in H.
           generalize (Hparent partition H); clear Hparent; intros Hparent.
           apply Hparent.
           unfold nextEntryIsPP in *.
-          simpl in *. assumption. }
+          simpl in *. assumption.
+       + apply accessibleVAIsNotPartitionDescriptorUpdateCurrentDescriptor; intuition. }
 Qed.
 
 Lemma activateParent parent currPart root descChild :
@@ -564,7 +604,7 @@ split.
       + apply dataStructurePdSh1Sh2asRootUpdateCurrentDescriptor; intuition.
       + apply dataStructurePdSh1Sh2asRootUpdateCurrentDescriptor; intuition.
       + apply dataStructurePdSh1Sh2asRootUpdateCurrentDescriptor; intuition.
-      + destruct Hcons as (_ & _& _& _ & Hpartlist & _ & _  & Hpart).
+      + destruct Hcons as (_ & _& _& _ & Hpartlist & _ & _  & Hpart & _).
         unfold currentPartitionInPartitionsList in *.
         simpl in *.
         rewrite <- getPartitionsUpdateCurrentDescriptor with s parent multiplexer.
@@ -586,11 +626,12 @@ split.
         rewrite getPartitionsUpdateCurrentDescriptor with s parent multiplexer; trivial.
       + unfold parentInPartitionList in *.
          intros. 
-         destruct Hcons as (_ & _& _& _ & _ & _ & _ & Hparent ).
+         destruct Hcons as (_ & _& _& _ & _ & _ & _ & Hparent & _ ).
           rewrite  <-getPartitionsUpdateCurrentDescriptor with s parent multiplexer.
           rewrite  <-getPartitionsUpdateCurrentDescriptor in H.
           generalize (Hparent partition H); clear Hparent; intros Hparent.
           apply Hparent.
            unfold nextEntryIsPP in *.
-           simpl in *. assumption. } 
+           simpl in *. assumption.
+     + apply accessibleVAIsNotPartitionDescriptorUpdateCurrentDescriptor; intuition. } 
 Qed.
