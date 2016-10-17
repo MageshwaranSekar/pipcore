@@ -261,10 +261,12 @@ match getNbLevel  with
  |None => None
  |Some level => let idxVA := getIndexOfAddr va fstLevel  in 
                match getIndirection pd va level (nbLevel - 1) s with 
-                | Some tbl => match (readPresent tbl idxVA s.(memory)) with 
-                               |Some true => readPhyEntry tbl idxVA s.(memory) 
-                               | _ =>  None 
-                              end
+                | Some tbl =>  if defaultPage =? tbl
+                                   then None 
+                                   else match (readPresent tbl idxVA s.(memory)) with 
+                                         |Some true => readPhyEntry tbl idxVA s.(memory) 
+                                         | _ =>  None 
+                                        end
                 | _ => None
                end
 end.
@@ -276,11 +278,13 @@ match getNbLevel  with
  |None => None
  |Some level =>let idxVA := getIndexOfAddr va fstLevel  in 
                match getIndirection pd va level (nbLevel - 1) s with 
-                | Some tbl => match (readPresent tbl idxVA s.(memory)),
-                                    (readAccessible tbl idxVA s.(memory)) with 
-                               |Some true, Some true => readPhyEntry tbl idxVA s.(memory) 
-                               | _, _ =>  None 
-                              end
+                | Some tbl => if defaultPage =? tbl
+                                   then None 
+                                   else  match (readPresent tbl idxVA s.(memory)),
+                                                   (readAccessible tbl idxVA s.(memory)) with 
+                                           |Some true, Some true => readPhyEntry tbl idxVA s.(memory) 
+                                           | _, _ =>  None 
+                                          end
                 | _ => None
                end
 end.

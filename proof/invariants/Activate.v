@@ -311,8 +311,9 @@ apply AllVAddrAll .
 symmetry; trivial.
 Qed.
 
-Lemma VAisChild phyVA partition nbL pd descChild ptpd s: 
+Lemma VAisChild phyVA partition nbL pd descChild (ptpd : page) s: 
 Some nbL = StateLib.getNbLevel -> 
+(defaultPage =? ptpd) = false -> 
 nextEntryIsPP partition PDidx pd s -> 
 true = checkChild partition nbL s descChild ->
 getTableAddrRoot ptpd PDidx partition descChild s -> 
@@ -320,7 +321,7 @@ isEntryPage ptpd (StateLib.getIndexOfAddr descChild fstLevel) phyVA s ->
 entryPresentFlag ptpd (StateLib.getIndexOfAddr descChild fstLevel) true s -> 
 List.In phyVA (getChildren partition s).
 Proof.
-intros Hnbl HnextEntryIsPP HisChild Hget HphyVA Hpresent .
+intros Hnbl Hnotnull HnextEntryIsPP HisChild Hget HphyVA Hpresent .
 unfold getChildren.
 rewrite <- Hnbl.
 assert (nextEntryIsPP partition PDidx pd s) as Hroot by intuition. 
@@ -361,19 +362,18 @@ assert (getIndirection p descChild nbl1 (nbLevel - 1) s = Some ptpd) as Hstopgt.
   assert (0 < nbLevel) by apply nbLevelNotZero.
   omega.
   assumption. }
-
 rewrite Hstopgt. 
 unfold isEntryPage in *.
 unfold StateLib.readPresent. 
 case_eq (lookup ptpd (StateLib.getIndexOfAddr descChild fstLevel) 
              (memory s) beqPage beqIndex); intros; rewrite H2 in *; [| now contradict HphyVA].
-
 destruct v as [ p0 |v|p0|v|ii] ; [ subst |now contradict HphyVA | now contradict HphyVA | 
  now contradict HphyVA | now contradict HphyVA ].
 unfold entryPresentFlag in *.
 rewrite H2 in Hpresent.
 rewrite <- Hpresent.
 unfold StateLib.readPhyEntry.
+rewrite Hnotnull.
 rewrite H2;trivial.
 Qed.
 

@@ -434,6 +434,7 @@ assert(Hind : getIndirection pd va l (nbLevel - 1)
 apply getIndirectionAddDerivation with entry; trivial.
 rewrite Hind.  
 destruct(getIndirection pd va l (nbLevel - 1) s); intros; trivial.
+destruct(defaultPage =? p);trivial.
  assert(Hpresent :   StateLib.readPresent p (StateLib.getIndexOfAddr va fstLevel)
     (add table idx (VE {| pd := false; va := descChild |}) (memory s) beqPage beqIndex) =
      StateLib.readPresent p (StateLib.getIndexOfAddr va fstLevel) (memory s)).
@@ -796,6 +797,7 @@ apply getIndirectionAddDerivation with entry; trivial.
 unfold s'.
 rewrite Hind.  
 destruct(getIndirection pd va l (nbLevel - 1) s); intros; trivial.
+destruct(defaultPage =? p);trivial.
  assert(Hpresent :   StateLib.readPresent p (StateLib.getIndexOfAddr va fstLevel)
     (add table idx (VE {| pd := false; va := descChild |}) (memory s) beqPage beqIndex) =
      StateLib.readPresent p (StateLib.getIndexOfAddr va fstLevel) (memory s)).

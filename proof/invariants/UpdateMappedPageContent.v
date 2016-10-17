@@ -1624,12 +1624,14 @@ rewrite  Hmemory. trivial.
 Qed.
 
 
-Lemma readMappedPageDataUpdateMappedPageData partition pt1 pt2 phy1 phy2 
+Lemma readMappedPageDataUpdateMappedPageData partition (pt1 pt2 : page) phy1 phy2 
 idxVa1 idxVa2 va1 va2  level s  : 
 In partition (getPartitions multiplexer s) -> 
 Some level = StateLib.getNbLevel -> 
 partitionDescriptorEntry s -> 
 noDupMappedPagesList s ->
+(defaultPage =?pt2) = false ->
+(defaultPage =?pt1) = false ->
 isEntryPage pt1 idxVa1 phy1 s -> 
 isEntryPage pt2 idxVa2 phy2 s ->
 StateLib.getIndexOfAddr va1 fstLevel = idxVa1 -> 
@@ -1647,7 +1649,7 @@ entryPresentFlag pt1 idxVa1 true s ->
 entryPresentFlag pt2 idxVa2 true s -> 
 phy1 <> phy2.
 Proof.
-intros Hmult Hlevel Hpde Hnodup Hep1 Hep2 Hidxva1 Hidxva2 Hget1 Hget2 Hvas
+intros Hmult Hlevel Hpde Hnodup Hpt2notnull Hpt1notnull Hep1 Hep2 Hidxva1 Hidxva2 Hget1 Hget2 Hvas
 Hpresent1 Hpresent2 .
 rewrite Hidxva1 in *.
 rewrite Hidxva2 in *.
@@ -1697,6 +1699,7 @@ assert(Hgetlastind2 :getIndirection pd va2 nbL1 (nbLevel - 1) s = Some pt2).
   assert(0 < nbLevel) by apply nbLevelNotZero.
   omega.
   rewrite Hgetlastind2.
+  rewrite Hpt2notnull.  
   unfold entryPresentFlag in Hpresent2.
   unfold StateLib.readPresent.
   subst.
@@ -1726,6 +1729,7 @@ assert(Hphy1 :getMappedPage pd s va1 = Some phy1).
   assert(0 < nbLevel) by apply nbLevelNotZero.
   omega.
   rewrite Hgetlastind1.
+  rewrite Hpt1notnull.
   unfold entryPresentFlag in Hpresent1.
   unfold StateLib.readPresent.
   subst.
@@ -1765,6 +1769,7 @@ assert(Hin : In phy1 (getMappedPages partition s)).
   assert(0 < nbLevel) by apply nbLevelNotZero.
   omega.
   rewrite Hgetlastind1.
+  rewrite Hpt1notnull.
   unfold entryPresentFlag in Hpresent1.
   unfold StateLib.readPresent.
   subst.

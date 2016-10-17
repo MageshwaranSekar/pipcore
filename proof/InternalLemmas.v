@@ -743,7 +743,6 @@ case_eq  (StateLib.Level.eqb nbL fstLevel); intros;rewrite H2 in *;trivial.
   * case_eq(StateLib.getIndexOfAddr va1 nbL =? StateLib.getIndexOfAddr va2 nbL); intros;
         rewrite H4 in *; try now contradict H.
     case_eq(StateLib.Level.eqb predNbL fstLevel);intros.
-    SearchAbout true iff.
     apply NPeano.Nat.eqb_eq.
     apply NPeano.Nat.lt_eq_cases in H1.
     destruct H1.
@@ -1170,9 +1169,10 @@ Qed.
 
 
 
-Lemma physicalPageIsAccessible (currentPart : page) ptPDChild 
+Lemma physicalPageIsAccessible (currentPart : page) (ptPDChild : page)
 phyPDChild pdChild idxPDChild accessiblePDChild  nbL presentPDChild 
 currentPD  s: 
+ (defaultPage =? ptPDChild ) = false ->
 accessiblePDChild = true -> 
 presentPDChild = true -> 
 StateLib.getIndexOfAddr pdChild fstLevel = idxPDChild -> 
@@ -1187,7 +1187,7 @@ isEntryPage ptPDChild (StateLib.getIndexOfAddr pdChild fstLevel) phyPDChild s ->
 In currentPart (getPartitions multiplexer s) -> 
 In phyPDChild (getAccessibleMappedPages currentPart s). 
 Proof. 
-intros Haccess Hpresentflag Hidx Hroot Hnbl
+intros Hnotnull Haccess Hpresentflag Hidx Hroot Hnbl
 Histblroot Hpresent Haccessentry Hentry Hcons.
 unfold getAccessibleMappedPages .
 assert( Hcurpd : StateLib.getPd currentPart (memory s) = Some currentPD). 
@@ -1257,6 +1257,7 @@ subst.
 destruct(lookup ptPDChild (StateLib.getIndexOfAddr pdChild fstLevel) (memory s) beqPage beqIndex);
 [| now contradict Hentry].
 destruct v; try now contradict Hentry.
+rewrite Hnotnull.
 f_equal. assumption.
 Qed.
 
@@ -1535,9 +1536,10 @@ Qed.
 
 Lemma accessiblePageIsNotPartitionDescriptor
 phyPDChild pdChild idxPDChild accessiblePDChild currentPart nbL presentPDChild 
-currentPD ptPDChild s:
+currentPD (ptPDChild : page) s:
 partitionsIsolation s ->  
 kernelDataIsolation s -> 
+ (defaultPage =? ptPDChild ) = false ->
 accessiblePDChild = true -> 
 presentPDChild = true -> 
 StateLib.getIndexOfAddr pdChild fstLevel = idxPDChild -> 
@@ -1552,7 +1554,7 @@ isEntryPage ptPDChild (StateLib.getIndexOfAddr pdChild fstLevel) phyPDChild s ->
 In currentPart (getPartitions multiplexer s) -> 
 ~ In phyPDChild (getPartitionAux multiplexer s (nbPage + 1)).
 Proof.
-intros Hiso Hanc Haccess Hpresentflag Hidx Hroot Hnbl
+intros Hiso Hanc Hnotnull Haccess Hpresentflag Hidx Hroot Hnbl
 Histblroot Hpresent Haccessentry Hentry Hcons. 
 assert (In phyPDChild (getAccessibleMappedPages currentPart s)) by
   now apply physicalPageIsAccessible with ptPDChild pdChild idxPDChild accessiblePDChild
@@ -1745,6 +1747,7 @@ destruct ( getIndirection p va l (nbLevel - 1) s);trivial.
 destruct (StateLib.readPresent p0 
           (StateLib.getIndexOfAddr va fstLevel) (memory s));trivial.
 destruct b; trivial.
+destruct (defaultPage =? p0); try now contradict Haccesible.
 destruct (StateLib.readAccessible p0 
 (StateLib.getIndexOfAddr va fstLevel) (memory s)); 
 [|now contradict Haccesible].
@@ -2371,7 +2374,8 @@ rewrite Hlookup in *.
 trivial.
 Qed.
 
-Lemma isAccessibleMappedPage pdChild currentPD ptPDChild  entry s : 
+Lemma isAccessibleMappedPage pdChild currentPD (ptPDChild : page)  entry s : 
+(defaultPage =? ptPDChild ) = false -> 
 entryPresentFlag ptPDChild (StateLib.getIndexOfAddr pdChild fstLevel) true s -> 
 entryUserFlag ptPDChild (StateLib.getIndexOfAddr pdChild fstLevel) true s -> 
 lookup ptPDChild (StateLib.getIndexOfAddr pdChild fstLevel) (memory s) beqPage beqIndex =
@@ -2382,7 +2386,7 @@ StateLib.getIndexOfAddr pdChild fstLevel = idx ->
 isPE ptPDChild idx s /\ getTableAddrRoot ptPDChild PDidx (currentPartition s) pdChild s ) -> 
 getAccessibleMappedPage currentPD s pdChild = Some (pa entry).
 Proof.
-intros Hpe Hue Hlookup Hpp Hget .
+intros Hnotnull Hpe Hue Hlookup Hpp Hget .
 assert ( isPE ptPDChild (StateLib.getIndexOfAddr pdChild fstLevel) s /\ 
         getTableAddrRoot ptPDChild PDidx (currentPartition s) pdChild s) as (_ & Hroot).
 apply Hget; trivial.
@@ -2410,6 +2414,7 @@ rewrite Hpe.
 apply entryUserFlagReadAccessible in Hue.
 rewrite Hue.
 unfold StateLib.readPhyEntry.
+rewrite Hnotnull.
 rewrite Hlookup;trivial.
 Qed.
 

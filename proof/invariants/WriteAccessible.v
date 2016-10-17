@@ -637,6 +637,7 @@ assert(StateLib.readPresent p lastidx (memory s')  =
 StateLib.readPresent p lastidx (memory s) ) as HreadP.
 apply readPresentUpdateUserFlag; trivial.
 rewrite HreadP in HgetAcc.
+destruct(defaultPage =? p); try now contradict HgetAcc.
 destruct (StateLib.readPresent p lastidx (memory s));
 [| now contradict Hget].
 destruct b;[| now contradict HgetAcc].
@@ -2642,11 +2643,12 @@ case_eq (beqPairs (table, idx) (partition, i) beqPage beqIndex); intros Hpairs.
    apply IHn.
 Qed.
 
-Lemma accessibleVAIsNotPartitionDescriptorUpdateUserFlag level table  s partition0  
+Lemma accessibleVAIsNotPartitionDescriptorUpdateUserFlag level (table : page)  s partition0  
 pd0 va2 entry:
 Some level = StateLib.getNbLevel -> 
 partitionDescriptorEntry s -> 
 noDupConfigPagesList s -> 
+(defaultPage =? table) = false ->
 lookup table (StateLib.getIndexOfAddr va2 fstLevel) 
     (memory s) beqPage beqIndex = Some (PE entry) -> 
 In partition0 (getPartitions multiplexer s) ->
@@ -2667,10 +2669,6 @@ accessibleVAIsNotPartitionDescriptor
                  user := false;
                  pa := pa entry |}) (memory s) beqPage beqIndex |}.
 Proof.
-intros Hlevel Hpde Hnodup Hentry Htableroot Hpart1 Hpd1 Haccess1 Hispart1.
-unfold accessibleVAIsNotPartitionDescriptor in *.
-intros partition va1 pd sh1 page .
-intros.
 set(s' :=  {|
   currentPartition := currentPartition s;
   memory := add table (StateLib.getIndexOfAddr va2 fstLevel)
@@ -2682,16 +2680,20 @@ set(s' :=  {|
                  present := present entry;
                  user := false;
                  pa := pa entry |}) (memory s) beqPage beqIndex |} ) in *.
+intros Hlevel Hpde Hnodup Htablenotnull Hentry Htableroot Hpart1 Hpd1 Haccess1 Hispart1.
+unfold accessibleVAIsNotPartitionDescriptor in *.
+intros partition va1 pd sh1 page .
+intros.
+
+
 assert (Hpd : StateLib.getPd partition (memory s') = 
               StateLib.getPd partition (memory s) ).
 apply getPdUpdateUserFlag;trivial.
 rewrite Hpd in *;clear Hpd.
-
 assert (StateLib.getFstShadow partition (memory s') = 
         StateLib.getFstShadow partition (memory s)) as Hsh1.
 apply getFstShadowUpdateUserFlag;trivial.
 rewrite Hsh1 in *;clear Hsh1.
-
 assert(getPartitions multiplexer s = 
         getPartitions multiplexer s').
 symmetry.
@@ -2707,7 +2709,6 @@ assert (getPDFlag sh1 va1 s' = getPDFlag sh1 va1 s).
   simpl.
   rewrite readPDflagUpdateUserFlag;trivial. }
 rewrite H3;clear H3.
-
 assert(partition = partition0 \/ partition <> partition0).
 { destruct partition0; destruct partition.
   assert(p0 = p \/ p0 <> p) by omega.
@@ -2719,12 +2720,11 @@ assert(partition = partition0 \/ partition <> partition0).
   intros.
   inversion H4.
   omega. }
-
 destruct H3.
 + subst.
   assert(checkVAddrsEqualityWOOffset nbLevel va1 va2 level = true \/ 
   checkVAddrsEqualityWOOffset nbLevel va1 va2 level = false). 
-  { admit. (** OK **) }
+  { destruct (checkVAddrsEqualityWOOffset nbLevel va1 va2 level);intuition. }
   destruct H3;subst.
   - apply Hispart1 with partition0 pd page;trivial.
     assert(pd = pd0).
@@ -2742,22 +2742,27 @@ destruct H3.
     destruct (StateLib.getNbLevel ); try now contradict H2.
     unfold s' in H2.
     rewrite getIndirectionUpdateUserFlag in *; trivial.
-    SearchAbout checkVAddrsEqualityWOOffset.
     assert(getIndirection pd0 va1 l (nbLevel - 1) s =
           getIndirection pd0 va2 l (nbLevel - 1) s ).
-          inversion Hlevel;subst.
-          apply getIndirectionEq;trivial.
-          admit. (** OK **)
+    {  inversion Hlevel;subst.
+        apply getIndirectionEq;trivial.
+        destruct l;simpl; omega. }
     rewrite H4 in *.
     destruct (getIndirection pd0 va2 l (nbLevel - 1) s); try now contradict H2.
-    
+    destruct (defaultPage =? p); try now contradict H2. 
     rewrite readPresentUpdateUserFlag in *; trivial.
     assert(Hlastidx : (StateLib.getIndexOfAddr va2 fstLevel) = (StateLib.getIndexOfAddr va1 fstLevel)).
     apply checkVAddrsEqualityWOOffsetTrue' with nbLevel level; trivial.
     rewrite <- H3.
     apply checkVAddrsEqualityWOOffsetPermut.
-    admit. (** Ok **)
-    admit. (** OK **)
+    unfold fstLevel.
+    unfold CLevel.
+    case_eq ( lt_dec 0 nbLevel );intros.
+    simpl.
+    omega.
+    assert(0<nbLevel) by apply nbLevelNotZero.
+    omega.
+    destruct level;simpl; omega.
     rewrite <- Hlastidx in *.
     destruct ( StateLib.readPresent p (StateLib.getIndexOfAddr va2 fstLevel) (memory s));
     try now contradict H2.
@@ -2818,22 +2823,25 @@ destruct H3.
     rewrite <- Haccess1.
     unfold getAccessibleMappedPage.
     destruct ( StateLib.getNbLevel).
-
     assert(getIndirection pd0 va1 l (nbLevel - 1) s = 
     getIndirection pd0 va2 l (nbLevel - 1) s).
     inversion Hlevel; subst.
      trivial.
      apply getIndirectionEq;trivial.
-     admit. (** OK **)
-    
+     destruct l;simpl;omega.
     rewrite H4 in *.
     destruct (getIndirection pd0 va2 l (nbLevel - 1) s ); intros.
     assert( (StateLib.getIndexOfAddr va1 fstLevel) = 
     (StateLib.getIndexOfAddr va2 fstLevel)).
     apply checkVAddrsEqualityWOOffsetTrue' with nbLevel level;trivial.
-    
-    admit. (** OOK **)
-    admit. (** OK**)
+    unfold fstLevel.
+    unfold CLevel.
+    case_eq ( lt_dec 0 nbLevel );intros.
+    simpl.
+    omega.
+    assert(0<nbLevel) by apply nbLevelNotZero.
+    omega.
+    destruct level;simpl;omega.
     rewrite H5.
     reflexivity.
     trivial.
@@ -2851,6 +2859,7 @@ destruct H3.
     simpl.
     case_eq(getIndirection pd0 va2 l (nbLevel - 1) s ); intros;
     rewrite H6 in *; try now contradict Haccess1.
+    case_eq(defaultPage =? p);intros;trivial.
     assert (Hpart : (getPartitions multiplexer s') = getPartitions multiplexer s).
     apply getPartitionsUpdateUserFlag;trivial.
     assert (Hpdnotnull : pd <> defaultPage).
@@ -2879,16 +2888,31 @@ destruct H3.
     assumption.
     clear Haccess1 Hispart1.
     left;split; trivial.
-    admit. (** OK **)
-    admit. (** OK **)
-    admit. (** OK **)
+    symmetry in H4.
+    apply getNbLevelEq in H4.
+    assumption.
+    simpl in *.
+    apply beq_nat_false  in H7.
+    unfold not.
+    intros.
+    subst.
+    now contradict H7.
+    apply beq_nat_false in Htablenotnull.
+    unfold not;intros;subst.
+    now contradict Htablenotnull.
     apply getIndirectionStopLevelGT with (nbLevel - 1).
     symmetry in H4.
     apply getNbLevelLe in H4.
-    admit. (** Ok **)
+    destruct l.
+    simpl;omega.
     symmetry in H4.
     apply getNbLevelEq in H4.
-    admit. (** OK **)
+    rewrite H4.
+    unfold CLevel.
+    case_eq(lt_dec (nbLevel - 1) nbLevel ); intros.
+    simpl;trivial.
+    assert(0<nbLevel) by apply nbLevelNotZero.
+    omega.
     assumption.
     assert(pd = pd0).
     { unfold StateLib.getPd in *.
@@ -2899,6 +2923,7 @@ destruct H3.
     rewrite Hpd1 in H0.
     inversion H0; trivial. }
     subst.
+    {
     unfold getTableAddrRoot in *.
     destruct Hpart1 as (_ & HH7).
     rewrite <- nextEntryIsPPgetPd in Hpd1.
@@ -2916,7 +2941,7 @@ destruct H3.
     rewrite <- Hnbl in H4.
     inversion H4.
     subst.
-    assumption.
+    assumption. }
     unfold getAccessibleMappedPage in Haccess1.
     case_eq ( StateLib.readPresent p (StateLib.getIndexOfAddr va1 fstLevel) (memory s));
     intros;trivial.
@@ -2945,7 +2970,6 @@ destruct H3.
     beqIndex = 
                    lookup p (StateLib.getIndexOfAddr va1 fstLevel) (memory s) beqPage beqIndex).
     apply removeDupIdentity ; intuition.
-    
     rewrite Hmemory.
     trivial.
    rewrite Haccess.
@@ -2956,5 +2980,218 @@ destruct H3.
    apply readPhyEntryUpdateUserFlag; trivial.
 + apply Hispart1 with partition pd page;trivial.
   rewrite <- H2.
-  admit. (** Need the isolation property **)
+  clear H2 Hispart1.
+  assert (Hpart : (getPartitions multiplexer s') = getPartitions multiplexer s).
+  apply getPartitionsUpdateUserFlag;trivial.
+  rewrite Hpart in *. 
+  assert (disjoint (getConfigPages partition0 s) (getConfigPages partition s)) by admit.
+  unfold getAccessibleMappedPage.
+  case_eq ( StateLib.getNbLevel );intros;trivial.
+  assert(Hind : getIndirection pd va1 l (nbLevel - 1) s' = 
+                getIndirection pd va1 l (nbLevel - 1) s).
+  { apply getIndirectionUpdateUserFlag;trivial. }
+  rewrite Hind;clear Hind.
+  case_eq( getIndirection pd va1 l (nbLevel - 1) s); intros;trivial.
+  case_eq(defaultPage =? p);intros;trivial.
+  unfold s'.
+  rewrite readPresentUpdateUserFlag;trivial.
+  simpl.
+  case_eq( StateLib.readPresent p (StateLib.getIndexOfAddr va1 fstLevel) (memory s) );
+  intros;trivial.
+  case_eq b;intros;trivial.
+  set(memory' := (add table (StateLib.getIndexOfAddr va2 fstLevel)
+       (PE
+          {|
+          read := read entry;
+          write := write entry;
+          exec := exec entry;
+          present := present entry;
+          user := false;
+          pa := pa entry |}) (memory s) beqPage beqIndex)) in *.
+   assert(StateLib.readAccessible p (StateLib.getIndexOfAddr va1 fstLevel) memory'  = 
+   StateLib.readAccessible p (StateLib.getIndexOfAddr va1 fstLevel) (memory s)).
+   { unfold StateLib.readAccessible.
+    cbn.
+    assert (table <> p \/ StateLib.getIndexOfAddr va2 fstLevel <> StateLib.getIndexOfAddr va1 fstLevel).
+    { left.
+    unfold getConfigPages in *.
+    unfold disjoint in *.
+    simpl in *.
+    generalize(H2 table); clear H2;intros Hconfig.
+    assert (          ~ (partition = table \/ In table (getConfigPagesAux partition s))).
+    {
+    apply Hconfig;right.
+    unfold getConfigPagesAux.
+    rewrite Hpd1.
+    case_eq(getFstShadow partition0 (memory s) );trivial.
+    case_eq( getSndShadow partition0 (memory s) );trivial.
+    case_eq(getConfigTablesLinkedList partition0 (memory s) );trivial.
+    intros.
+    simpl.
+    right.
+    apply in_app_iff.
+    left.
+    assert(getIndirection pd0 va2 l nbLevel s = Some table).
+    { unfold getTableAddrRoot in *.
+      destruct Hpart1 as (_ & HH7).
+      rewrite <- nextEntryIsPPgetPd in Hpd1.
+      generalize (HH7 pd0 Hpd1 );clear HH7; intros HH7.
+      destruct HH7 as (nbL & Hnbl & stop & Hstop & Hind).
+      assert(stop = nbLevel ).
+      { apply getNbLevelEq in Hnbl.
+        subst.
+        unfold CLevel.
+        case_eq(lt_dec (nbLevel - 1) nbLevel);intros.
+        simpl.
+        omega.
+        assert (0< nbLevel) by apply nbLevelNotZero.
+        omega. }
+      rewrite <- Hnbl in H4.
+      inversion H4.
+      subst.
+      assumption. }    
+    apply getIndirectionInGetIndirections with va2 l nbLevel;trivial.
+    simpl.
+    assert(0<nbLevel) by apply nbLevelNotZero.
+    omega.
+    unfold not;intros;subst.
+    apply beq_nat_false in Htablenotnull.
+    now contradict Htablenotnull.
+    symmetry in H4.
+    apply getNbLevelEq in H4.
+    subst.
+    omega.
+    unfold partitionDescriptorEntry in *.
+    assert(Hentrypd: exists entry , nextEntryIsPP partition0 PDidx entry s /\ entry <> defaultPage).
+    apply Hpde;trivial.
+    left;trivial.
+    destruct Hentrypd as (entrypd & Hpp & Hnotnul).
+    assert(entrypd = pd0).
+    SearchAbout nextEntryIsPP StateLib.getPd.
+    apply getPdNextEntryIsPPEq with partition0 s;trivial.
+    subst.
+    assumption.
+    intros.
+    unfold partitionDescriptorEntry in *.
+    assert(Hentrypd: exists entry , nextEntryIsPP partition0 sh3idx entry s /\ entry <> defaultPage).
+    apply Hpde;trivial.
+    do 3 right;left;trivial.
+    destruct Hentrypd as (entrypd & Hpp & Hnotnul).
+    apply nextEntryIsPPgetConfigList in Hpp.
+    rewrite H2 in Hpp.
+    now contradict Hpp.
+    intros.
+    unfold partitionDescriptorEntry in *.
+    assert(Hentrypd: exists entry , nextEntryIsPP partition0 sh2idx entry s /\ entry <> defaultPage).
+    apply Hpde;trivial.
+    do 2 right;left;trivial.
+    destruct Hentrypd as (entrypd & Hpp & Hnotnul).
+    apply nextEntryIsPPgetSndShadow in Hpp.
+    rewrite H2 in Hpp.
+    now contradict Hpp.
+    intros.
+    unfold partitionDescriptorEntry in *.
+    assert(Hentrypd: exists entry , nextEntryIsPP partition0 sh1idx entry s /\ entry <> defaultPage).
+    apply Hpde;trivial.
+    right;left;trivial.
+    destruct Hentrypd as (entrypd & Hpp & Hnotnul).
+    apply nextEntryIsPPgetFstShadow in Hpp.
+    rewrite H2 in Hpp.
+    now contradict Hpp. }
+    clear Hconfig.
+    apply Classical_Prop.not_or_and in H2.
+    destruct H2 as (_ & Hconfig).
+    assert (In p (getConfigPagesAux partition s)).
+    unfold getConfigPagesAux.
+    rewrite H0.
+    case_eq(getFstShadow partition (memory s) );trivial.
+    case_eq( getSndShadow partition (memory s) );trivial.
+    case_eq(getConfigTablesLinkedList partition (memory s) );trivial.
+    intros.
+    simpl.
+    right.
+    apply in_app_iff.
+    left.
+   (* assert(getIndirection pd va1 l nbLevel s = Some p).
+    { apply  unfold getTableAddrRoot in *.
+      destruct Hpart1 as (_ & HH7).
+      rewrite <- nextEntryIsPPgetPd in Hpd1.
+      generalize (HH7 pd0 Hpd1 );clear HH7; intros HH7.
+      destruct HH7 as (nbL & Hnbl & stop & Hstop & Hind).
+      assert(stop = nbLevel ).
+      { apply getNbLevelEq in Hnbl.
+        subst.
+        unfold CLevel.
+        case_eq(lt_dec (nbLevel - 1) nbLevel);intros.
+        simpl.
+        omega.
+        assert (0< nbLevel) by apply nbLevelNotZero.
+        omega. }
+      rewrite <- Hnbl in H4.
+      inversion H4.
+      subst.
+      assumption. } *)   
+      unfold getIndirections.
+    apply getIndirectionInGetIndirections with va1 l (nbLevel-1);trivial.
+    simpl.
+    assert(0<nbLevel) by apply nbLevelNotZero.
+    omega.
+    unfold not;intros;subst.
+    apply beq_nat_false in H6.
+    now contradict H6.
+    symmetry in H4.
+    apply getNbLevelEq in H4.
+    subst.
+    omega.
+    unfold partitionDescriptorEntry in *.
+    assert(Hentrypd: exists entry , nextEntryIsPP partition PDidx entry s /\ entry <> defaultPage).
+    apply Hpde;trivial.
+    left;trivial.
+    destruct Hentrypd as (entrypd & Hpp & Hnotnul).
+    assert(entrypd = pd).
+    SearchAbout nextEntryIsPP StateLib.getPd.
+    apply getPdNextEntryIsPPEq with partition s;trivial.
+    subst.
+    assumption.
+    intros.
+    unfold partitionDescriptorEntry in *.
+    assert(Hentrypd: exists entry , nextEntryIsPP partition sh3idx entry s /\ entry <> defaultPage).
+    apply Hpde;trivial.
+    do 3 right;left;trivial.
+    destruct Hentrypd as (entrypd & Hpp & Hnotnul).
+    apply nextEntryIsPPgetConfigList in Hpp.
+    rewrite H2 in Hpp.
+    now contradict Hpp.
+    intros.
+    unfold partitionDescriptorEntry in *.
+    assert(Hentrypd: exists entry , nextEntryIsPP partition sh2idx entry s /\ entry <> defaultPage).
+    apply Hpde;trivial.
+    do 2 right;left;trivial.
+    destruct Hentrypd as (entrypd & Hpp & Hnotnul).
+    apply nextEntryIsPPgetSndShadow in Hpp.
+    rewrite H2 in Hpp.
+    now contradict Hpp.
+    intros.
+    unfold partitionDescriptorEntry in *.
+    assert(Hentrypd: exists entry , nextEntryIsPP partition sh1idx entry s /\ entry <> defaultPage).
+    apply Hpde;trivial.
+    right;left;trivial.
+    destruct Hentrypd as (entrypd & Hpp & Hnotnul).
+    apply nextEntryIsPPgetFstShadow in Hpp.
+    rewrite H2 in Hpp.
+    now contradict Hpp.
+    unfold not;intros;subst. now contradict Hconfig. }
+    assert( Hpairs : beqPairs (table, StateLib.getIndexOfAddr va2 fstLevel) (p, StateLib.getIndexOfAddr va1 fstLevel) 
+    beqPage beqIndex = false).
+    apply beqPairsFalse;trivial.
+    rewrite Hpairs.
+    assert(Hmemory :  lookup p (StateLib.getIndexOfAddr va1 fstLevel)
+    (removeDup table (StateLib.getIndexOfAddr va2 fstLevel) (memory s) beqPage beqIndex) beqPage
+    beqIndex = lookup p (StateLib.getIndexOfAddr va1 fstLevel) (memory s) beqPage beqIndex ).
+    apply removeDupIdentity ; intuition.
+    rewrite Hmemory;trivial. }
+    rewrite H9.
+    destruct(StateLib.readAccessible p (StateLib.getIndexOfAddr va1 fstLevel) (memory s) );trivial.
+    unfold memory'.
+    rewrite readPhyEntryUpdateUserFlag;trivial.
 Admitted.
