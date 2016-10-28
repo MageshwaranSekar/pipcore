@@ -235,17 +235,25 @@ Definition createPartition (descChild pdChild shadow1Child shadow2Child
 
         (**  Set all given pages as not accessible *)
         writeAccessible ptPDChildFromPD idxPDChild false ;;
-        writeAccessible ptSh1ChildFromPD idxSh1Child false ;;
-        writeAccessible ptSh2ChildFromPD idxSh2Child false ;;
-        writeAccessible ptConfigPagesList idxConfigPagesList false ;;
-        writeAccessible ptDescChildFromPD idxDescChild false ;; 
-
-        (** Set all given pages as not accessible in all ancestors **)
         writeAccessibleRec nbPage pdChild currentPart false ;;
+        
+        writeAccessible ptSh1ChildFromPD idxSh1Child false ;;
         writeAccessibleRec nbPage shadow1Child currentPart false ;;
+         
+        writeAccessible ptSh2ChildFromPD idxSh2Child false ;;
         writeAccessibleRec nbPage shadow2Child currentPart false;;
+        
+        writeAccessible ptConfigPagesList idxConfigPagesList false ;;
         writeAccessibleRec nbPage ConfigPagesList currentPart false;;
+        
+        writeAccessible ptDescChildFromPD idxDescChild false ;; 
         writeAccessibleRec nbPage descChild currentPart false;;
+        (** Set all given pages as not accessible in all ancestors **)
+
+       
+        
+
+
 
         perform zero := MALInternal.Index.zero in
         (** Initialize phyPDChild table *)

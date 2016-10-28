@@ -119,13 +119,65 @@ forall root, nextEntryIsPP partition idxroot root s->
 (** ** The [accessibleVAIsNotPartitionDescriptor] requires that accessible virtual 
     addresses are not marked as partition descriptor into the first shadow configuation
     structure  *)
-Definition accessibleVAIsNotPartitionDescriptor s:=
+Definition accessibleVAIsNotPartitionDescriptor s :=
 forall partition va pd sh1 page, 
   In partition (getPartitions multiplexer s) -> 
   StateLib.getPd partition (memory s) = Some pd -> 
   StateLib.getFstShadow partition (memory s) = Some sh1 -> 
   getAccessibleMappedPage pd s va = Some page -> 
   getPDFlag sh1 va s = false.
+
+Definition isAccessibleMappedPageInParent partition va accessiblePage s:=
+match StateLib.getSndShadow partition (memory s) with 
+| Some sh2 => 
+  match  getVirtualAddressSh2 sh2 s va  with 
+   | Some vaInParent => 
+     match StateLib.getParent partition (memory s) with 
+      | Some parent => 
+        match StateLib.getPd parent (memory s) with 
+         | Some pdParent => 
+           match getAccessibleMappedPage pdParent s vaInParent with 
+            | Some sameAccessiblePage => accessiblePage =? sameAccessiblePage
+            | None => false
+           end
+         | None => false
+        end
+    | None => false
+           end
+| None => false
+           end
+| None => false
+end.
+
+(** ** The [accessibleChildPhysicalPageIsAccessibleIntoParent] requires that all accessible physical 
+      pages into a given partition should be accessible into its parent *)
+Definition accessibleChildPhysicalPageIsAccessibleIntoParent' s := 
+forall partition va pd parent entry sh2 pdParent vaInParent , 
+  In partition (getPartitions multiplexer s) ->
+  StateLib.getPd partition (memory s) = Some pd ->
+  getAccessibleMappedPage pd s va = Some (pa entry) ->
+  
+  
+  StateLib.getParent partition (memory s) = Some parent -> 
+  StateLib.getSndShadow partition (memory s) = Some sh2 -> 
+  getVirtualAddressSh2 sh2 s va = Some vaInParent -> 
+  StateLib.getPd parent (memory s) = Some pdParent -> 
+  getAccessibleMappedPage pdParent s vaInParent = Some (pa entry).
+
+(** ** The [accessibleChildPhysicalPageIsAccessibleIntoParent] requires that all accessible physical 
+      pages into a given partition should be accessible into its parent *)
+Definition accessibleChildPhysicalPageIsAccessibleIntoParent s := 
+forall partition va pd  accessiblePage, 
+  In partition (getPartitions multiplexer s) ->
+  StateLib.getPd partition (memory s) = Some pd ->
+  getAccessibleMappedPage pd s va = Some accessiblePage ->
+  isAccessibleMappedPageInParent partition va accessiblePage s = true. 
+(*  exists parent sh2 vaInParent pdParent,  
+  StateLib.getParent partition (memory s) = Some parent /\
+  StateLib.getSndShadow partition (memory s) = Some sh2 /\ 
+  getVirtualAddressSh2 sh2 s va = Some vaInParent /\ 
+  StateLib.getPd parent (memory s) = Some pdParent /\ 
+  getAccessibleMappedPage pdParent s vaInParent = Some phypage *)
   
 (** ** Conjunction of all consistency properties *)
 Definition consistency s := 
@@ -137,4 +189,5 @@ Definition consistency s :=
  noDupMappedPagesList s /\
  noDupConfigPagesList s  /\
  parentInPartitionList s /\
- accessibleVAIsNotPartitionDescriptor s. 
+ accessibleVAIsNotPartitionDescriptor s /\
+ accessibleChildPhysicalPageIsAccessibleIntoParent s.

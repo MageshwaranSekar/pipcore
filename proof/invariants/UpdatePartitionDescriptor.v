@@ -38,7 +38,9 @@ Invariants StateLib Model.Hardware Model.ADT Model.MAL
 DependentTypeLemmas Model.Lib InternalLemmas  PropagatedProperties UpdateMappedPageContent.
 Require Import Coq.Logic.ProofIrrelevance Omega List Bool. 
 
-Lemma updatePartitionDescriptorPropagatedProperties (idxroot : index) table1 idxVa1 pt1 va1  value1 value2 zero nullv presentConfigPagesList 
+Lemma updatePartitionDescriptorPropagatedProperties 
+
+(idxroot : index) table1 idxVa1 pt1 va1  value1 value2 zero nullv presentConfigPagesList 
           presentPDChild presentRefChild presentSh1 presentSh2 pdChild currentPart 
           currentPD level ptRefChild descChild idxRefChild ptPDChild
           idxPDChild ptSh1Child shadow1 idxSh1  ptSh2Child shadow2 idxSh2 ptConfigPagesList
@@ -49,7 +51,8 @@ Lemma updatePartitionDescriptorPropagatedProperties (idxroot : index) table1 idx
 presentRefChild = true  /\ presentPDChild = true  /\
 presentConfigPagesList = true /\ presentSh1 = true /\ presentSh2 = true -> 
 {{ fun s : state =>
-  (propagatedProperties pdChild currentPart currentPD level ptRefChild descChild idxRefChild true ptPDChild idxPDChild
+  (propagatedProperties  false false false false
+   pdChild currentPart currentPD level ptRefChild descChild idxRefChild true ptPDChild idxPDChild
       true ptSh1Child shadow1 idxSh1 true ptSh2Child shadow2 idxSh2 true ptConfigPagesList idxConfigPagesList true
       currentShadow1 ptRefChildFromSh1 derivedRefChild ptPDChildSh1 derivedPDChild ptSh1ChildFromSh1 derivedSh1Child
       childSh2 derivedSh2Child childListSh1 derivedRefChildListSh1 list phyPDChild phySh1Child phySh2Child
@@ -86,7 +89,8 @@ presentConfigPagesList = true /\ presentSh1 = true /\ presentSh2 = true ->
 
 Internal.updatePartitionDescriptor table1 idxroot value1 value2 
 {{ fun _ s  =>
-     (propagatedProperties pdChild currentPart currentPD level ptRefChild descChild idxRefChild true ptPDChild idxPDChild
+     (propagatedProperties  false false false false
+     pdChild currentPart currentPD level ptRefChild descChild idxRefChild true ptPDChild idxPDChild
       true ptSh1Child shadow1 idxSh1 true ptSh2Child shadow2 idxSh2 true ptConfigPagesList idxConfigPagesList true
       currentShadow1 ptRefChildFromSh1 derivedRefChild ptPDChildSh1 derivedPDChild ptSh1ChildFromSh1 derivedSh1Child
       childSh2 derivedSh2Child childListSh1 derivedRefChildListSh1 list phyPDChild phySh1Child phySh2Child
@@ -121,7 +125,25 @@ eapply bindRev.
    split.
    intuition.
     apply propagatedPropertiesUpdateMappedPageData; trivial.
-         assert(getPartitions multiplexer {|
+    split.
+    intuition.
+(*     split.
+    unfold propagatedProperties in *.
+  unfold consistency in *.
+  assert(Hin : currentPartitionInPartitionsList s)by
+  intuition.
+
+  apply mappedPageIsNotPTable with currentPart currentPD isPE PDidx 
+  pdChild idxPDChild s ;
+  intuition.
+  subst.
+  unfold currentPartitionInPartitionsList.
+  trivial.
+  subst.
+  unfold currentPartitionInPartitionsList.
+  trivial.
+  intuition. *)
+  assert(getPartitions multiplexer {|
       currentPartition := currentPartition s;
       memory := add table1 idxroot (VA value2) (memory s) beqPage beqIndex |} = 
       getPartitions multiplexer s) as Hpartions.
@@ -316,11 +338,11 @@ eapply bindRev.
     rewrite Hconfaux in *.
     assumption.
     apply isEntryPageUpdateMappedPageData; trivial.
-    apply mappedPageIsNotPTable with (currentPartition s)  currentPD va1 idxVa1 s ;
-    trivial.
+    apply mappedPageIsNotPTable with (currentPartition s)  currentPD isPE PDidx va1 idxVa1 s ;
+    trivial. left;trivial.
     apply isPEUpdateUpdateMappedPageData; trivial.
-    apply mappedPageIsNotPTable with (currentPartition s)  currentPD va1 idxVa1 s ;
-    trivial.
+    apply mappedPageIsNotPTable with (currentPartition s)  currentPD isPE PDidx va1 idxVa1 s ;
+    trivial. left;trivial.
     apply Htableroot1; trivial.
     apply getTableAddrRootUpdateMappedPageData; trivial.
     assert (isPE pt1 idx s /\ getTableAddrRoot pt1 PDidx (currentPartition s)  va1 s)
@@ -328,8 +350,8 @@ eapply bindRev.
     apply Htableroot1; trivial.
     trivial.
     apply entryPresentFlagUpdateMappedPageData; trivial.
-    apply mappedPageIsNotPTable with (currentPartition s)   currentPD va1 idxVa1 s ;
-    trivial.
+    apply mappedPageIsNotPTable with (currentPartition s)   currentPD isPE PDidx va1 idxVa1 s ;
+    trivial. left;trivial.
     apply nextEntryIsPPUpdateMappedPageData; trivial.
     intros [].
  (** MALInternal.Index.succ **) 
@@ -346,21 +368,17 @@ eapply bindRev.
    intuition.
    intros PRidxsucc.
 (** writePhysical**)
-   eapply weaken.
-   eapply WP.writePhysical.
-   simpl;intros.
-   try repeat rewrite and_assoc in H.
-    subst.
-   pattern s in H.
-   simpl in *.
-   intuition.
-   subst.
-    apply propagatedPropertiesUpdateMappedPageData; trivial.
-    unfold propagatedProperties in *. 
-    intuition.
-    unfold propagatedProperties in *.
-    intuition.
-    assert (Htable : forall idx : index, StateLib.readPhyEntry phySh2Child idx (memory s) = Some defaultPage)
+  eapply weaken.
+  eapply WP.writePhysical.
+  simpl;intros.
+  try repeat rewrite and_assoc in H.
+  subst.
+  pattern s in H.
+  simpl in *.
+  intuition.
+  subst.
+   apply propagatedPropertiesUpdateMappedPageData; trivial.
+     assert (Htable : forall idx : index, StateLib.readPhyEntry phySh2Child idx (memory s) = Some defaultPage)
     by intuition.
     { generalize (Htable idx); clear Htable; intros Htable.
       rewrite <- Htable.

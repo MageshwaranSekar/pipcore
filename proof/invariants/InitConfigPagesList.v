@@ -35,7 +35,7 @@
     This file contains the invariant of [initConfigPagesList] some associated lemmas *)
 Require Import Core.Internal Isolation Consistency WeakestPreconditions Invariants.
 Require Import StateLib Model.Hardware Model.ADT DependentTypeLemmas
-PropagatedProperties  UpdateMappedPageContent.
+PropagatedProperties  UpdateMappedPageContent InternalLemmas.
 Require Import Coq.Logic.ProofIrrelevance Omega Model.MAL List Bool.
 
 Lemma initConfigPagesListNewProperty phyConfigPagesList (curidx : index):
@@ -676,7 +676,8 @@ case_eq eqbZero;intros HfstEntry.
     apply indexSuccSuccEvenOddLt with iIndex nextidx; trivial.
 Qed.
 
-Lemma initConfigPagesListPropagateProperties curidx pdChild currentPart currentPD level ptRefChild descChild idxRefChild
+Lemma initConfigPagesListPropagateProperties 
+curidx pdChild currentPart currentPD level ptRefChild descChild idxRefChild
       presentRefChild ptPDChild idxPDChild presentPDChild ptSh1Child shadow1 idxSh1 presentSh1
       ptSh2Child shadow2 idxSh2 presentSh2 ptConfigPagesList idxConfigPagesList
       presentConfigPagesList currentShadow1 ptRefChildFromSh1 derivedRefChild ptPDChildSh1
@@ -687,13 +688,13 @@ presentRefChild = true  /\ presentPDChild = true  /\
               presentConfigPagesList = true /\ presentSh1 = true /\ presentSh2 = true
                -> 
 {{ fun s : state =>
-   (((propagatedProperties pdChild currentPart currentPD level ptRefChild descChild idxRefChild
-        presentRefChild ptPDChild idxPDChild presentPDChild ptSh1Child shadow1 idxSh1 presentSh1
-        ptSh2Child shadow2 idxSh2 presentSh2 ptConfigPagesList idxConfigPagesList
-        presentConfigPagesList currentShadow1 ptRefChildFromSh1 derivedRefChild ptPDChildSh1
-        derivedPDChild ptSh1ChildFromSh1 derivedSh1Child childSh2 derivedSh2Child childListSh1
-        derivedRefChildListSh1 list phyPDChild phySh1Child phySh2Child phyConfigPagesList
-        phyDescChild s /\ pzero = CIndex 0) /\
+   (((propagatedProperties false false false false pdChild currentPart currentPD level ptRefChild
+      descChild idxRefChild presentRefChild ptPDChild idxPDChild presentPDChild ptSh1Child shadow1
+      idxSh1 presentSh1 ptSh2Child shadow2 idxSh2 presentSh2 ptConfigPagesList idxConfigPagesList
+      presentConfigPagesList currentShadow1 ptRefChildFromSh1 derivedRefChild ptPDChildSh1
+      derivedPDChild ptSh1ChildFromSh1 derivedSh1Child childSh2 derivedSh2Child childListSh1
+      derivedRefChildListSh1 list phyPDChild phySh1Child phySh2Child phyConfigPagesList
+      phyDescChild s   /\ pzero = CIndex 0) /\
      (forall idx : index, StateLib.readPhyEntry phySh2Child idx (memory s) = Some defaultPage)) /\
     (forall idx : index, StateLib.readPhyEntry phySh1Child idx (memory s) = Some defaultPage)) /\
    (forall idx : index, StateLib.readPhyEntry phyPDChild idx (memory s) = Some defaultPage) /\ 
@@ -703,13 +704,13 @@ presentRefChild = true  /\ presentPDChild = true  /\
   Internal.initConfigPagesList phyConfigPagesList curidx 
   
   {{ fun _ s  =>
-   (((propagatedProperties pdChild currentPart currentPD level ptRefChild descChild idxRefChild
-        presentRefChild ptPDChild idxPDChild presentPDChild ptSh1Child shadow1 idxSh1 presentSh1
-        ptSh2Child shadow2 idxSh2 presentSh2 ptConfigPagesList idxConfigPagesList
-        presentConfigPagesList currentShadow1 ptRefChildFromSh1 derivedRefChild ptPDChildSh1
-        derivedPDChild ptSh1ChildFromSh1 derivedSh1Child childSh2 derivedSh2Child childListSh1
-        derivedRefChildListSh1 list phyPDChild phySh1Child phySh2Child phyConfigPagesList
-        phyDescChild s /\ pzero = CIndex 0) /\
+   (((propagatedProperties false false false false pdChild currentPart currentPD level ptRefChild
+      descChild idxRefChild presentRefChild ptPDChild idxPDChild presentPDChild ptSh1Child shadow1
+      idxSh1 presentSh1 ptSh2Child shadow2 idxSh2 presentSh2 ptConfigPagesList idxConfigPagesList
+      presentConfigPagesList currentShadow1 ptRefChildFromSh1 derivedRefChild ptPDChildSh1
+      derivedPDChild ptSh1ChildFromSh1 derivedSh1Child childSh2 derivedSh2Child childListSh1
+      derivedRefChildListSh1 list phyPDChild phySh1Child phySh2Child phyConfigPagesList
+      phyDescChild s   /\ pzero = CIndex 0) /\
      (forall idx : index, StateLib.readPhyEntry phySh2Child idx (memory s) = Some defaultPage)) /\
     (forall idx : index, StateLib.readPhyEntry phySh1Child idx (memory s) = Some defaultPage)) /\
    (forall idx : index, StateLib.readPhyEntry phyPDChild idx (memory s) = Some defaultPage) }}.
@@ -787,7 +788,8 @@ induction n.  simpl.
     intuition.
     unfold propagatedProperties in *.
     intuition.
-    split. intuition.
+    split.
+    intuition.
     split.
     intros.
     assert (Htable : forall idx : index, StateLib.readPhyEntry phySh2Child idx (memory s) = Some defaultPage)
@@ -902,7 +904,7 @@ case_eq eqbZero;intros HfstEntry.
    pattern s in H.
    eassumption.
    repeat rewrite and_assoc in H.
-   destruct H as (Hpp & _  & _ & _ &_ & _& Hzero & Hmax & 
+   destruct H as (Hpp & _  & _ & _ &_ & _ & Hzero & Hmax & 
                   Hnoteqmax & Heqbzero).  
    unfold StateLib.Index.eqb in Hnoteqmax.
    symmetry in Hnoteqmax.
@@ -932,7 +934,8 @@ case_eq eqbZero;intros HfstEntry.
     intuition.
     unfold propagatedProperties in *.
     intuition.
-    split. intuition.
+    split.
+ intuition.
     split.
     intros.
     assert (Htable : forall idx : index, StateLib.readPhyEntry phySh2Child idx (memory s) = Some defaultPage)
@@ -968,7 +971,6 @@ case_eq eqbZero;intros HfstEntry.
     assumption. }
     split.
     intros. 
-    
     assert (Htable : forall idx : index, StateLib.readPhyEntry phySh1Child idx (memory s) = Some defaultPage)
     by intuition.
     { generalize (Htable idx); clear Htable; intros Htable.
@@ -1054,7 +1056,7 @@ case_eq eqbZero;intros HfstEntry.
    
    intuition.
    split. intuition.
-   destruct H as (Hpp & _  & _ & _ &_ & _& Hzero & Hmax & 
+   destruct H as (Hpp & _  & _ & _ &_ &  _ & Hzero & Hmax & 
                   Hnoteqmax & Heqbzero & Hidxsucc).
    (** Nat.Odd idxsucc**)
    { right.
@@ -1085,12 +1087,13 @@ case_eq eqbZero;intros HfstEntry.
    simpl in *.
    split.
     destruct H.
-    apply propagatedPropertiesUpdateMappedPageData; trivial.
+        apply propagatedPropertiesUpdateMappedPageData; trivial.
     unfold propagatedProperties in *. 
     intuition.
     unfold propagatedProperties in *.
-    intuition.
-    split. intuition.
+    intuition. 
+    split.
+   intuition.
     split.
     intros.
     assert (Htable : forall idx : index, StateLib.readPhyEntry phySh2Child idx (memory s) = Some defaultPage)
@@ -1205,7 +1208,7 @@ case_eq eqbZero;intros HfstEntry.
    pattern s in H.
    eassumption.
    repeat rewrite and_assoc in H.
-   destruct H as (Hpp & _  & _ & _ &_ & _ & Hzero & Hmax & 
+   destruct H as (Hpp & _  & _ & _  & _ & _ & Hzero & Hmax & 
                   Hnoteqmax & Heqbzero & Hnullv).  
    unfold StateLib.Index.eqb in Hnoteqmax.
    symmetry in Hnoteqmax.
@@ -1282,12 +1285,13 @@ case_eq eqbZero;intros HfstEntry.
    simpl in *.
    split.
     destruct H.
-    apply propagatedPropertiesUpdateMappedPageData; trivial.
+        apply propagatedPropertiesUpdateMappedPageData; trivial.
     unfold propagatedProperties in *. 
     intuition.
     unfold propagatedProperties in *.
     intuition.
-    split. intuition.
+    split.
+    intuition.
     split.
     intros.
     assert (Htable : forall idx : index, StateLib.readPhyEntry phySh2Child idx (memory s) = Some defaultPage)

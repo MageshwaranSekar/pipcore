@@ -42,14 +42,12 @@ Require Import Coq.Logic.ProofIrrelevance Omega List Bool.
 
 Lemma getPdAddDerivation partition (descChild : vaddr) 
 table idx (s : state) entry :
-lookup table idx (memory s) beqPage beqIndex = Some (VE entry) ->  
+lookup table idx (memory s) beqPage beqIndex = Some (VE entry) ->
 StateLib.getPd partition
-  (memory
-     {|
-     currentPartition := currentPartition s;
-     memory := add table idx (VE {| pd := false; va := descChild |}) (memory s) beqPage beqIndex |}) =
+  (add table idx (VE {| pd := false; va := descChild |}) (memory s) beqPage beqIndex) =
 StateLib.getPd partition (memory s).
 Proof.
+simpl.
 intros Hentry.
 unfold StateLib.getPd.
 case_eq ( StateLib.Index.succ PDidx ); intros; trivial.
@@ -70,14 +68,12 @@ Qed.
 
 Lemma getFstShadowAddDerivation partition (descChild : vaddr) 
 table idx (s : state) entry :
-lookup table idx (memory s) beqPage beqIndex = Some (VE entry) ->  
-StateLib.getFstShadow partition
-  (memory
-     {|
-     currentPartition := currentPartition s;
-     memory := add table idx (VE {| pd := false; va := descChild |}) (memory s) beqPage beqIndex |}) =
-StateLib.getFstShadow partition (memory s).
+lookup table idx (memory s) beqPage beqIndex = Some (VE entry) ->
+getFstShadow partition
+  (add table idx (VE {| pd := false; va := descChild |}) (memory s) beqPage beqIndex) =
+getFstShadow partition (memory s).
 Proof.
+simpl.
 intros Hentry.
 unfold StateLib.getFstShadow.
 case_eq ( StateLib.Index.succ sh1idx ); intros; trivial.
@@ -117,6 +113,32 @@ case_eq (beqPairs (table, idx) (child, i) beqPage beqIndex);trivial;intros Hpair
  + apply beqPairsFalse in Hpairs.
    assert (lookup  child i (removeDup table idx (memory s) beqPage beqIndex)
            beqPage beqIndex = lookup  child i   (memory s) beqPage beqIndex) as Hmemory.
+   { apply removeDupIdentity. intuition. }
+     rewrite Hmemory. reflexivity.
+Qed.
+
+Lemma getParentAddDerivation partition (descChild : vaddr) 
+table idx (s : state) entry :
+lookup table idx (memory s) beqPage beqIndex = Some (VE entry) ->
+StateLib.getParent partition
+  (add table idx (VE {| pd := false; va := descChild |}) (memory s) beqPage beqIndex) =
+StateLib.getParent partition (memory s).
+Proof.
+simpl.
+intros Hentry.
+unfold StateLib.getParent.
+case_eq ( StateLib.Index.succ PPRidx ); intros; trivial.
+cbn.
+unfold StateLib.readPhysical. 
+cbn. 
+case_eq (beqPairs (table, idx) (partition, i) beqPage beqIndex);trivial;intros Hpairs.
+ + apply beqPairsTrue in Hpairs.
+   destruct Hpairs as (Htable & Hidx).  subst.
+   rewrite Hentry.
+   trivial.
+ + apply beqPairsFalse in Hpairs.
+   assert (lookup  partition i (removeDup table idx (memory s) beqPage beqIndex)
+           beqPage beqIndex = lookup  partition i   (memory s) beqPage beqIndex) as Hmemory.
    { apply removeDupIdentity. intuition. }
      rewrite Hmemory. reflexivity.
 Qed.
@@ -1343,6 +1365,96 @@ rewrite H4.
 apply H with partition pd page;trivial.
 Qed.
 
+Lemma getVirtualAddressSh2AddDerivation sh2 s descChild table idx va entry:
+  lookup table idx (memory s) beqPage beqIndex = Some (VE entry) -> 
+getVirtualAddressSh2 sh2 s va =
+getVirtualAddressSh2 sh2
+    {|
+    currentPartition := currentPartition s;
+    memory := add table idx (VE {| pd := false; va := descChild |}) 
+    (memory s) beqPage beqIndex |} va.
+Proof.
+intros.
+unfold getVirtualAddressSh2.
+case_eq(StateLib.getNbLevel);trivial.
+intros nbL HnbL.
+symmetry in HnbL. 
+simpl.
+rewrite  getIndirectionAddDerivation with sh2 table idx descChild s entry va  nbL (nbLevel -1);
+trivial.
+case_eq( getIndirection sh2 va nbL (nbLevel - 1) s);trivial.
+intros lastIndirection Hind.
+simpl.
+case_eq(defaultPage =? lastIndirection);intros;trivial.
+symmetry. 
+apply readVirtualAddDerivation with entry;trivial.
+Qed.
+
+Lemma isAccessibleMappedPageInParentAddDerivattion partition (* nbL *) entry va
+ accessiblePage table idx descChild s:
+  lookup table idx (memory s) beqPage beqIndex = Some (VE entry) -> 
+isAccessibleMappedPageInParent partition va accessiblePage s =
+isAccessibleMappedPageInParent partition va accessiblePage
+  {|
+  currentPartition := currentPartition s;
+  memory := add table idx (VE {| pd := false; va := descChild |}) (memory s) beqPage beqIndex |}.
+Proof.
+unfold isAccessibleMappedPageInParent.
+simpl.
+intros.
+rewrite  getSndShadowAddDerivation with partition descChild table idx s entry ;trivial.
+case_eq (getSndShadow partition (memory s));trivial.
+intros sh2 Hsh2.
+rewrite <- getVirtualAddressSh2AddDerivation with sh2 s descChild table idx va entry;trivial.
+case_eq(getVirtualAddressSh2 sh2 s va);trivial.
+intros vaInParent HvaInParent.
+rewrite getParentAddDerivation with  partition descChild table idx s entry ;trivial.
+case_eq(getParent partition (memory s));trivial.
+intros parent Hparent.
+rewrite getPdAddDerivation with  parent descChild table idx s entry;trivial.
+case_eq(StateLib.getPd parent (memory s) );trivial.
+intros pdParent HpdParent.
+rewrite <- getAccessibleMappedPageAddDerivation  with 
+pdParent descChild table idx entry vaInParent s;trivial.
+
+Qed.
+
+Lemma accessibleChildPhysicalPageIsAccessibleIntoParentAddDerivation
+ (descChild : vaddr) table idx entry (s : state): 
+( StateLib.readPDflag table idx (memory s) = Some false \/
+StateLib.readPDflag table idx (memory s) = None)-> 
+ lookup table idx (memory s) beqPage beqIndex = Some (VE entry) -> 
+accessibleChildPhysicalPageIsAccessibleIntoParent s -> 
+accessibleChildPhysicalPageIsAccessibleIntoParent
+{|
+currentPartition := currentPartition s;
+memory := add table idx (VE {| pd := false; va := descChild |}) (memory s) beqPage beqIndex |}.
+Proof.
+intros Hpdflag Hlookup Haccess .
+set (s' :=  {|
+  currentPartition := currentPartition s;
+  memory := add table idx (VE {| pd := false; va := descChild |}) 
+   (memory s) beqPage beqIndex |}) in *.   
+unfold accessibleChildPhysicalPageIsAccessibleIntoParent.
+intros  partition va pd  accessiblePage.
+intros Hpart Hpd HaccessPage.
+unfold s'.
+assert(Hgetparts : getPartitions multiplexer s' = getPartitions multiplexer s).
+{ apply getPartitionsAddDerivation with entry; trivial. }
+rewrite Hgetparts in *.
+clear Hgetparts.
+simpl in *.
+rewrite getPdAddDerivation with partition descChild table idx s  entry in Hpd ; trivial.
+unfold s' in *.
+rewrite getAccessibleMappedPageAddDerivation  
+with pd descChild table idx entry va s in HaccessPage;trivial. 
+
+rewrite <- isAccessibleMappedPageInParentAddDerivattion with partition entry
+va accessiblePage table idx descChild s;trivial.
+unfold accessibleChildPhysicalPageIsAccessibleIntoParent in *.
+apply Haccess with pd;trivial.
+Qed.
+
 Lemma consistencyUpdtateSh1Structure (descChild : vaddr) table idx entry (s : state):
 lookup table idx (memory s) beqPage beqIndex = Some (VE entry) -> 
 (StateLib.readPDflag table idx (memory s) = Some false \/ 
@@ -1372,7 +1484,10 @@ split.
 apply noDupConfigPagesListAddDerivation with entry; intuition.
 split.
 apply parentInPartitionListAddDerivation with entry; intuition.
+split.
 apply accessibleVAIsNotPartitionDescriptorAddDerivation with entry; intuition.
+apply accessibleChildPhysicalPageIsAccessibleIntoParentAddDerivation with entry;
+intuition.
 Qed.
 
 Lemma getTableRootAddDerivation table1 idx1 table2 idx2 partition   
@@ -1502,4 +1617,22 @@ case_eq (beqPairs (table2, idx2) (table1, idx1) beqPage beqIndex);trivial;intros
            beqPage beqIndex = lookup  table1 idx1  (memory s) beqPage beqIndex) as Hmemory.
    { apply removeDupIdentity. intuition. }
      rewrite Hmemory. trivial.
+Qed.
+
+Lemma isPartitionFalseAddDerivation table idx descChild s :
+isPartitionFalse table idx 
+  {|
+  currentPartition := currentPartition s;
+  memory := add table idx (VE {| pd := false; va := descChild |}) 
+              (memory s) beqPage beqIndex |}.
+Proof.
+unfold isPartitionFalse.
+cbn.
+left.
+unfold StateLib.readPDflag.
+cbn.
+assert(Htrue : beqPairs (table, idx) (table, idx) beqPage beqIndex = true).
+apply beqPairsTrue;split;trivial.
+rewrite Htrue.
+cbn;trivial.
 Qed.

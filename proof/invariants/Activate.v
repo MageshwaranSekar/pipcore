@@ -416,6 +416,33 @@ rewrite H4 in *;clear H4.
 apply H with partition pd page ;trivial.
 Qed.
 
+Lemma getVirtualAddressSh2UpdateCurrentPartition sh2 phyVA va s :
+getVirtualAddressSh2 sh2 {| currentPartition := phyVA; memory := memory s |} va =
+     getVirtualAddressSh2 sh2 s va.
+Proof.
+unfold getVirtualAddressSh2.
+destruct ( StateLib.getNbLevel);trivial.
+rewrite <- getIndirectionUpdateCurrentPartition.
+destruct (getIndirection sh2 va l (nbLevel - 1) s );trivial.
+Qed.
+
+Lemma isAccessibleMappedPageInParentUpdateCurrentPartition
+ partition va accessiblePage s parent:
+isAccessibleMappedPageInParent partition va accessiblePage 
+{| currentPartition := parent; memory := memory s |} = 
+isAccessibleMappedPageInParent partition va accessiblePage s.
+Proof.
+unfold isAccessibleMappedPageInParent.
+simpl.
+destruct( getSndShadow partition (memory s) );trivial.
+rewrite getVirtualAddressSh2UpdateCurrentPartition.
+destruct(getVirtualAddressSh2 p s va );trivial.
+destruct(getParent partition (memory s) );trivial.
+destruct(StateLib.getPd p0 (memory s) );trivial.
+rewrite <- getAccessibleMappedPageUpdateCurrentPartition .
+trivial.
+Qed.
+
 Lemma activateChild descChild vaNotNulll currPart
 root isMultiplexer nbL  ptpd lastIndex phyVA pd: 
 {{ fun s : state =>((((((((((((partitionsIsolation s /\ kernelDataIsolation s /\ verticalSharing s /\ consistency s) /\
@@ -533,7 +560,15 @@ split.
           apply Hparent.
           unfold nextEntryIsPP in *.
           simpl in *. assumption.
-       + apply accessibleVAIsNotPartitionDescriptorUpdateCurrentDescriptor; intuition. }
+       + apply accessibleVAIsNotPartitionDescriptorUpdateCurrentDescriptor; intuition.
+       + destruct Hcons as (_ & _& _& _ & _ & _ & _ & _ & _ & Haccess).
+         unfold accessibleChildPhysicalPageIsAccessibleIntoParent in *.
+         simpl.
+         intros.
+         rewrite  <-getPartitionsUpdateCurrentDescriptor in H.
+         rewrite <- getAccessibleMappedPageUpdateCurrentPartition in *.
+         rewrite  isAccessibleMappedPageInParentUpdateCurrentPartition.
+         apply Haccess with pd0;trivial.  }
 Qed.
 
 Lemma activateParent parent currPart root descChild :
@@ -633,5 +668,14 @@ split.
           apply Hparent.
            unfold nextEntryIsPP in *.
            simpl in *. assumption.
-     + apply accessibleVAIsNotPartitionDescriptorUpdateCurrentDescriptor; intuition. } 
+     + apply accessibleVAIsNotPartitionDescriptorUpdateCurrentDescriptor; intuition.
+     + destruct Hcons as (_ & _& _& _ & _ & _ & _ & _ & _ & Haccess).
+       unfold accessibleChildPhysicalPageIsAccessibleIntoParent in *.
+       simpl.
+       intros.
+       rewrite  <-getPartitionsUpdateCurrentDescriptor in H.
+       rewrite <- getAccessibleMappedPageUpdateCurrentPartition in *.
+       rewrite  isAccessibleMappedPageInParentUpdateCurrentPartition.
+       apply Haccess with pd;trivial.
+          }
 Qed.

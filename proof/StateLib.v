@@ -271,6 +271,20 @@ match getNbLevel  with
                end
 end.
 
+(** The [getVirtualAddress] function returns the virtual address stored into the second shadow structure 
+   which corresponds to a given virtual address **)
+Definition getVirtualAddressSh2 sh2 s va: option vaddr :=
+match getNbLevel  with 
+ |None => None
+ |Some level => let idxVA := getIndexOfAddr va fstLevel  in 
+               match getIndirection sh2 va level (nbLevel - 1) s with 
+                | Some tbl =>  if defaultPage =? tbl
+                                   then None 
+                                   else readVirtual tbl idxVA s.(memory) 
+                | _ => None
+               end
+end.
+
 (** The [getAccessibleMappedPage] function returns the physical page stored into a leaf node, 
    which corresponds to a given virtual address, if the present and user flags are equal to true **)
 Definition getAccessibleMappedPage pd s va: option page :=

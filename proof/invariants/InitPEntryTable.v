@@ -286,7 +286,8 @@ induction n.  simpl.
 }
 Qed.
 
-Lemma initPEntryTablePropagateProperties1 table phyPDChild
+Lemma initPEntryTablePropagateProperties1  
+table phyPDChild
        phySh1Child phySh2Child phyConfigPagesList phyDescChild  (curidx : index) zero  currentPart currentPD
  level ptRefChild descChild idxRefChild presentRefChild ptPDChild pdChild 
  idxPDChild presentPDChild ptSh1Child shadow1 idxSh1 presentSh1 ptSh2Child 
@@ -295,13 +296,14 @@ Lemma initPEntryTablePropagateProperties1 table phyPDChild
  ptPDChildSh1 derivedPDChild ptSh1ChildFromSh1 derivedSh1Child childSh2 
  derivedSh2Child childListSh1 derivedRefChildListSh1 list :
 {{fun s =>  
-  (propagatedProperties pdChild currentPart currentPD level ptRefChild descChild idxRefChild
-      presentRefChild ptPDChild idxPDChild presentPDChild ptSh1Child shadow1 idxSh1 presentSh1
-      ptSh2Child shadow2 idxSh2 presentSh2 ptConfigPagesList idxConfigPagesList
+ ( propagatedProperties false false false false pdChild currentPart currentPD level ptRefChild
+      descChild idxRefChild presentRefChild ptPDChild idxPDChild presentPDChild ptSh1Child shadow1
+      idxSh1 presentSh1 ptSh2Child shadow2 idxSh2 presentSh2 ptConfigPagesList idxConfigPagesList
       presentConfigPagesList currentShadow1 ptRefChildFromSh1 derivedRefChild ptPDChildSh1
       derivedPDChild ptSh1ChildFromSh1 derivedSh1Child childSh2 derivedSh2Child childListSh1
-      derivedRefChildListSh1 list phyPDChild
-       phySh1Child phySh2Child phyConfigPagesList phyDescChild s /\ zero = CIndex 0) /\
+      derivedRefChildListSh1 list phyPDChild phySh1Child phySh2Child phyConfigPagesList
+      phyDescChild s /\ 
+   zero = CIndex 0 ) /\
   (forall partition : page,
   In partition (getPartitions multiplexer s) ->
   partition = table \/ In table (getConfigPagesAux partition s) -> False) /\ 
@@ -311,13 +313,14 @@ Lemma initPEntryTablePropagateProperties1 table phyPDChild
 initPEntryTable table  curidx 
 
 {{ fun res s =>  
-   (propagatedProperties pdChild currentPart currentPD level ptRefChild descChild idxRefChild
-      presentRefChild ptPDChild idxPDChild presentPDChild ptSh1Child shadow1 idxSh1 presentSh1
-      ptSh2Child shadow2 idxSh2 presentSh2 ptConfigPagesList idxConfigPagesList
+  ( propagatedProperties false false false false pdChild currentPart currentPD level ptRefChild
+      descChild idxRefChild presentRefChild ptPDChild idxPDChild presentPDChild ptSh1Child shadow1
+      idxSh1 presentSh1 ptSh2Child shadow2 idxSh2 presentSh2 ptConfigPagesList idxConfigPagesList
       presentConfigPagesList currentShadow1 ptRefChildFromSh1 derivedRefChild ptPDChildSh1
       derivedPDChild ptSh1ChildFromSh1 derivedSh1Child childSh2 derivedSh2Child childListSh1
-      derivedRefChildListSh1 list phyPDChild
-       phySh1Child phySh2Child phyConfigPagesList phyDescChild s /\ zero = CIndex 0)   }}.
+      derivedRefChildListSh1 list phyPDChild phySh1Child phySh2Child phyConfigPagesList
+      phyDescChild s /\ 
+   zero = CIndex 0 )  }}.
 Proof.
 unfold initPEntryTable.
 unfold initPEntryTableAux.
@@ -384,7 +387,8 @@ induction n.  simpl.
    split.
    unfold s'. 
    apply propagatedPropertiesUpdateMappedPageData; trivial.
-   split; trivial.
+   split.
+   trivial.
    split.
    intros.
    contradict H1.
@@ -482,8 +486,10 @@ induction n.  simpl.
     split.
     unfold s'. 
     apply propagatedPropertiesUpdateMappedPageData; trivial.
-    split; trivial.
-    split.
+
+   split.
+   trivial.
+   split.
     intros partition Hpartition.
     assert(getPartitions multiplexer s' = getPartitions multiplexer s) as Hpartions.
      { unfold s'.
@@ -517,7 +523,8 @@ induction n.  simpl.
 
 Qed.
 
-Lemma initPEntryTablePropagateProperties2  partition  va1 va2 idxVa1 idxVa2 (table1 table2 : page) phyPage1 
+Lemma initPEntryTablePropagateProperties2  accessibleChild accessibleSh1 accessibleSh2 accessibleList 
+partition  va1 va2 idxVa1 idxVa2 (table1 table2 : page) phyPage1 
       phyPage2 curidx pdChild currentPart currentPD level ptRefChild descChild idxRefChild
       presentRefChild ptPDChild idxPDChild presentPDChild ptSh1Child shadow1 idxSh1 presentSh1
       ptSh2Child shadow2 idxSh2 presentSh2 ptConfigPagesList idxConfigPagesList
@@ -526,7 +533,8 @@ Lemma initPEntryTablePropagateProperties2  partition  va1 va2 idxVa1 idxVa2 (tab
       derivedRefChildListSh1 list phyPDChild phySh1Child phySh2Child phyConfigPagesList 
       phyDescChild zero :
 {{ fun s : state =>
-   (propagatedProperties pdChild currentPart currentPD level ptRefChild descChild idxRefChild
+   (propagatedProperties accessibleChild accessibleSh1 accessibleSh2 accessibleList 
+   pdChild currentPart currentPD level ptRefChild descChild idxRefChild
       presentRefChild ptPDChild idxPDChild presentPDChild ptSh1Child shadow1 idxSh1 presentSh1
       ptSh2Child shadow2 idxSh2 presentSh2 ptConfigPagesList idxConfigPagesList
       presentConfigPagesList currentShadow1 ptRefChildFromSh1 derivedRefChild ptPDChildSh1
@@ -679,20 +687,23 @@ induction n.  simpl.
     split; trivial.
     split.
     apply isEntryPageUpdateMappedPageData; trivial.
-    apply mappedPageIsNotPTable with partition  currentPD va1 idxVa1 s ;
+    apply mappedPageIsNotPTable with partition  currentPD isPE PDidx va1 idxVa1 s ;
     trivial.
+    left;trivial.
     split.
     apply isEntryPageUpdateMappedPageData; trivial.
-    apply mappedPageIsNotPTable with partition  currentPD va2 idxVa2 s ;
+    apply mappedPageIsNotPTable with partition  currentPD isPE PDidx va2 idxVa2 s ;
     trivial.
+    left;trivial. 
     split; trivial.
     split; trivial.
     split.
     intros.
     split. 
     apply isPEUpdateUpdateMappedPageData; trivial.
-    apply mappedPageIsNotPTable with partition  currentPD va1 idxVa1 s ;
+    apply mappedPageIsNotPTable with partition  currentPD isPE PDidx va1 idxVa1 s ;
     trivial.
+    left;trivial.
     apply Htableroot1; trivial.
     apply getTableAddrRootUpdateMappedPageData; trivial.
     assert (isPE table1 idx s /\ getTableAddrRoot table1 PDidx partition va1 s)
@@ -703,8 +714,9 @@ induction n.  simpl.
     intros.
     split. 
     apply isPEUpdateUpdateMappedPageData; trivial.
-    apply mappedPageIsNotPTable with partition  currentPD va2 idxVa2 s ;
+    apply mappedPageIsNotPTable with partition  currentPD isPE PDidx va2 idxVa2 s ;
     trivial.
+    left;trivial.
     apply Htableroot2; trivial.
     apply getTableAddrRootUpdateMappedPageData; trivial.
     assert (isPE table2 idx s /\ getTableAddrRoot table2 PDidx partition va2 s)
@@ -714,11 +726,11 @@ induction n.  simpl.
     split; trivial.
     repeat split; trivial.
     apply entryPresentFlagUpdateMappedPageData; trivial.
-    apply mappedPageIsNotPTable with partition  currentPD va1 idxVa1 s ;
-    trivial.
+    apply mappedPageIsNotPTable with partition  currentPD isPE PDidx va1 idxVa1 s ;
+    trivial. left;trivial.
     apply entryPresentFlagUpdateMappedPageData; trivial.
-    apply mappedPageIsNotPTable with partition  currentPD va2 idxVa2 s ;
-    trivial.
+    apply mappedPageIsNotPTable with partition  currentPD isPE PDidx va2 idxVa2 s ;
+    trivial. left;trivial.
     intros [].
     (** MALInternal.Index.succ **) 
      eapply WP.bindRev.
@@ -845,20 +857,20 @@ induction n.  simpl.
     split; trivial.
     split.
     apply isEntryPageUpdateMappedPageData; trivial.
-    apply mappedPageIsNotPTable with partition  currentPD va1 idxVa1 s ;
-    trivial.
+    apply mappedPageIsNotPTable with partition  currentPD isPE PDidx va1 idxVa1 s ;
+    trivial. left;trivial.
     split.
     apply isEntryPageUpdateMappedPageData; trivial.
-    apply mappedPageIsNotPTable with partition  currentPD va2 idxVa2 s ;
-    trivial.
+    apply mappedPageIsNotPTable with partition  currentPD isPE PDidx va2 idxVa2 s ;
+    trivial. left;trivial.
     split; trivial.
     split; trivial.
     split.
     intros.
     split. 
     apply isPEUpdateUpdateMappedPageData; trivial.
-    apply mappedPageIsNotPTable with partition  currentPD va1 idxVa1 s ;
-    trivial.
+    apply mappedPageIsNotPTable with partition  currentPD isPE PDidx va1 idxVa1 s ;
+    trivial. left;trivial.
     apply Htableroot1; trivial.
     apply getTableAddrRootUpdateMappedPageData; trivial.
     assert (isPE table1 idx s /\ getTableAddrRoot table1 PDidx partition va1 s)
@@ -869,8 +881,8 @@ induction n.  simpl.
     intros.
     split. 
     apply isPEUpdateUpdateMappedPageData; trivial.
-    apply mappedPageIsNotPTable with partition  currentPD va2 idxVa2 s ;
-    trivial.
+    apply mappedPageIsNotPTable with partition  currentPD isPE PDidx va2 idxVa2 s ;
+    trivial. left;trivial.
     apply Htableroot2; trivial.
     apply getTableAddrRootUpdateMappedPageData; trivial.
     assert (isPE table2 idx s /\ getTableAddrRoot table2 PDidx partition va2 s)
@@ -880,11 +892,11 @@ induction n.  simpl.
     split; trivial.
     repeat split; trivial.
     apply entryPresentFlagUpdateMappedPageData; trivial.
-    apply mappedPageIsNotPTable with partition  currentPD va1 idxVa1 s ;
-    trivial.
+    apply mappedPageIsNotPTable with partition  currentPD isPE PDidx va1 idxVa1 s ;
+    trivial. left;trivial.
     apply entryPresentFlagUpdateMappedPageData; trivial.
-    apply mappedPageIsNotPTable with partition  currentPD va2 idxVa2 s ;
-    trivial.
+    apply mappedPageIsNotPTable with partition  currentPD isPE PDidx va2 idxVa2 s ;
+    trivial. left;trivial.
     intros.
     (** ret true **)
     eapply WP.weaken.  

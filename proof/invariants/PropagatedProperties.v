@@ -34,7 +34,8 @@
 Require Import Isolation Consistency Model.Hardware Model.ADT StateLib .
 Require Import List Arith Model.MALInternal.
 Import List.ListNotations.
-Definition propagatedProperties  pdChild currentPart currentPD level ptRefChild descChild idxRefChild presentRefChild
+Definition propagatedProperties  accessibleChild accessibleSh1 accessibleSh2 accessibleList 
+pdChild currentPart currentPD level ptRefChild descChild idxRefChild presentRefChild
  ptPDChild idxPDChild presentPDChild  ptSh1Child shadow1 idxSh1
 presentSh1  ptSh2Child shadow2 idxSh2 presentSh2  ptConfigPagesList 
 idxConfigPagesList presentConfigPagesList 
@@ -70,54 +71,69 @@ isPE ptRefChild idx s /\ getTableAddrRoot ptRefChild PDidx currentPart descChild
 (defaultPage =? ptRefChild) = false /\
 StateLib.getIndexOfAddr descChild fstLevel = idxRefChild /\
 entryPresentFlag ptRefChild idxRefChild presentRefChild s /\
+entryUserFlag ptRefChild idxRefChild accessibleChild s /\
 (forall idx : index,
 StateLib.getIndexOfAddr pdChild fstLevel = idx ->
 isPE ptPDChild idx s /\ getTableAddrRoot ptPDChild PDidx currentPart pdChild s) /\
 (defaultPage =? ptPDChild) = false /\
-StateLib.getIndexOfAddr pdChild fstLevel = idxPDChild /\ entryPresentFlag ptPDChild idxPDChild presentPDChild s /\
+StateLib.getIndexOfAddr pdChild fstLevel = idxPDChild /\
+entryPresentFlag ptPDChild idxPDChild presentPDChild s /\
+entryUserFlag ptPDChild idxPDChild false s /\
 (forall idx : index,
 StateLib.getIndexOfAddr shadow1 fstLevel = idx ->
 isPE ptSh1Child idx s /\ getTableAddrRoot ptSh1Child PDidx currentPart shadow1 s) /\
 (defaultPage =? ptSh1Child) = false /\
-StateLib.getIndexOfAddr shadow1 fstLevel = idxSh1 /\ entryPresentFlag ptSh1Child idxSh1 presentSh1 s /\
+StateLib.getIndexOfAddr shadow1 fstLevel = idxSh1 /\
+entryPresentFlag ptSh1Child idxSh1 presentSh1 s /\
+entryUserFlag ptSh1Child idxSh1 accessibleSh1 s /\
 (forall idx : index,
 StateLib.getIndexOfAddr shadow2 fstLevel = idx ->
 isPE ptSh2Child idx s /\ getTableAddrRoot ptSh2Child PDidx currentPart shadow2 s) /\
 (defaultPage =? ptSh2Child) = false /\
-StateLib.getIndexOfAddr shadow2 fstLevel = idxSh2 /\ entryPresentFlag ptSh2Child idxSh2 presentSh2 s /\
+StateLib.getIndexOfAddr shadow2 fstLevel = idxSh2 /\
+entryPresentFlag ptSh2Child idxSh2 presentSh2 s /\
+entryUserFlag ptSh2Child idxSh2 accessibleSh2 s /\
 (forall idx : index,
 StateLib.getIndexOfAddr list fstLevel = idx ->
 isPE ptConfigPagesList idx s /\ getTableAddrRoot ptConfigPagesList PDidx currentPart list s) /\
 (defaultPage =? ptConfigPagesList) = false /\
 StateLib.getIndexOfAddr list fstLevel = idxConfigPagesList /\
 entryPresentFlag ptConfigPagesList idxConfigPagesList presentConfigPagesList s /\
+entryUserFlag ptConfigPagesList idxConfigPagesList accessibleList s /\
 nextEntryIsPP currentPart sh1idx currentShadow1 s /\
 (forall idx : index,
 StateLib.getIndexOfAddr descChild fstLevel = idx ->
-isVE ptRefChildFromSh1 idx s /\ getTableAddrRoot ptRefChildFromSh1 sh1idx currentPart descChild s) /\
+isVE ptRefChildFromSh1 idx s /\
+getTableAddrRoot ptRefChildFromSh1 sh1idx currentPart descChild s) /\
 (defaultPage =? ptRefChildFromSh1) = false /\
-(exists va : vaddr, isEntryVA ptRefChildFromSh1 idxRefChild va s /\ beqVAddr defaultVAddr va = derivedRefChild) /\
+(exists va : vaddr,
+isEntryVA ptRefChildFromSh1 idxRefChild va s /\ beqVAddr defaultVAddr va = derivedRefChild) /\
 (forall idx : index,
 StateLib.getIndexOfAddr pdChild fstLevel = idx ->
 isVE ptPDChildSh1 idx s /\ getTableAddrRoot ptPDChildSh1 sh1idx currentPart pdChild s) /\
 (defaultPage =? ptPDChildSh1) = false /\
-(exists va : vaddr, isEntryVA ptPDChildSh1 idxPDChild va s /\ beqVAddr defaultVAddr va = derivedPDChild) /\
+(exists va : vaddr,
+isEntryVA ptPDChildSh1 idxPDChild va s /\ beqVAddr defaultVAddr va = derivedPDChild) /\
 (forall idx : index,
 StateLib.getIndexOfAddr shadow1 fstLevel = idx ->
-isVE ptSh1ChildFromSh1 idx s /\ getTableAddrRoot ptSh1ChildFromSh1 sh1idx currentPart shadow1 s) /\
+isVE ptSh1ChildFromSh1 idx s /\
+getTableAddrRoot ptSh1ChildFromSh1 sh1idx currentPart shadow1 s) /\
 (defaultPage =? ptSh1ChildFromSh1) = false /\
-(exists va : vaddr, isEntryVA ptSh1ChildFromSh1 idxSh1 va s /\ beqVAddr defaultVAddr va = derivedSh1Child) /\
+(exists va : vaddr,
+isEntryVA ptSh1ChildFromSh1 idxSh1 va s /\ beqVAddr defaultVAddr va = derivedSh1Child) /\
 (forall idx : index,
 StateLib.getIndexOfAddr shadow2 fstLevel = idx ->
 isVE childSh2 idx s /\ getTableAddrRoot childSh2 sh1idx currentPart shadow2 s) /\
 (defaultPage =? childSh2) = false /\
-(exists va : vaddr, isEntryVA childSh2 idxSh2 va s /\ beqVAddr defaultVAddr va = derivedSh2Child) /\
+(exists va : vaddr,
+isEntryVA childSh2 idxSh2 va s /\ beqVAddr defaultVAddr va = derivedSh2Child) /\
 (forall idx : index,
 StateLib.getIndexOfAddr list fstLevel = idx ->
 isVE childListSh1 idx s /\ getTableAddrRoot childListSh1 sh1idx currentPart list s) /\
 (defaultPage =? childListSh1) = false /\
 (exists va : vaddr,
-isEntryVA childListSh1 idxConfigPagesList va s /\ beqVAddr defaultVAddr va = derivedRefChildListSh1) /\
+isEntryVA childListSh1 idxConfigPagesList va s /\
+beqVAddr defaultVAddr va = derivedRefChildListSh1) /\
 isEntryPage ptPDChild idxPDChild phyPDChild s /\
 (defaultPage =? phyPDChild) = false /\
 (forall partition : page,
@@ -139,9 +155,11 @@ isEntryPage ptConfigPagesList idxConfigPagesList phyConfigPagesList s /\
 In partition (getPartitions multiplexer s) ->
 ~ (partition = phyConfigPagesList \/ In phyConfigPagesList (getConfigPagesAux partition s))) /\
 isEntryPage ptRefChild idxRefChild phyDescChild s /\ (defaultPage =? phyDescChild) = false /\
-(forall partition : page, In partition (getPartitions multiplexer s) -> ~ In phyDescChild (getConfigPages partition s)) /\
-isPartitionFalse ptPDChildSh1 idxPDChild s /\ entryUserFlag ptPDChild idxPDChild false s /\
-isPartitionFalse ptSh1ChildFromSh1 idxSh1 s /\ entryUserFlag ptSh1Child idxSh1 false s /\
-isPartitionFalse childSh2 idxSh2 s /\ entryUserFlag ptSh2Child idxSh2 false s /\
-isPartitionFalse childListSh1 idxConfigPagesList s /\ entryUserFlag ptConfigPagesList idxConfigPagesList false s /\
-isPartitionFalse ptRefChildFromSh1 idxRefChild s /\ entryUserFlag ptRefChild idxRefChild false s. 
+(forall partition : page,
+In partition (getPartitions multiplexer s) -> ~ In phyDescChild (getConfigPages partition s)) /\
+isPartitionFalse ptSh1ChildFromSh1 idxSh1 s /\
+isPartitionFalse childSh2 idxSh2 s /\
+isPartitionFalse childListSh1 idxConfigPagesList s /\
+isPartitionFalse ptRefChildFromSh1 idxRefChild s /\
+isPartitionFalse ptPDChildSh1 idxPDChild s .
+  
