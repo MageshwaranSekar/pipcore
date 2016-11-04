@@ -315,9 +315,9 @@ eapply bind .
 Qed.
 Lemma readVirEntry  table idx  (P : vaddr -> state -> Prop) :
 {{fun  s => exists entry, lookup table idx s.(memory) beqPage beqIndex = Some ( VE entry) /\ 
-             P entry.(va) s }} readVirEntry table idx {{P}}.
+             P entry.(va) s }} MAL.readVirEntry table idx {{P}}.
 Proof.
-unfold readVirEntry.
+unfold MAL.readVirEntry.
 eapply bind .
   - intro s. simpl. 
     case_eq (lookup table idx s.(memory) beqPage beqIndex).

@@ -210,28 +210,28 @@ Definition createPartition (descChild pdChild shadow1Child shadow2Child
         (** Get physical addresses of all given virtual addresses *)
         (** pdChild virtual address *)
         perform phyPDChild  := readPhyEntry ptPDChildFromPD idxPDChild in
-        perform isNull := comparePageToNull phyPDChild in
-        if isNull then ret false else
+        (* perform isNull := comparePageToNull phyPDChild in
+        if isNull then ret false else *)
 
         (** shadow1Child virtual address *)
         perform phySh1Child := readPhyEntry ptSh1ChildFromPD idxSh1Child in
-        perform isNull := comparePageToNull phySh1Child in
-        if isNull then ret false else
+        (* perform isNull := comparePageToNull phySh1Child in
+        if isNull then ret false else *)
 
         (** shadow2Child virtual address *)
         perform phySh2Child := readPhyEntry ptSh2ChildFromPD idxSh2Child in
-        perform isNull := comparePageToNull phySh2Child in
-        if isNull then ret false else
+        (* perform isNull := comparePageToNull phySh2Child in
+        if isNull then ret false else *)
 
         (** ConfigPagesList virtual address *)
         perform  phyConfigPagesList := readPhyEntry ptConfigPagesList idxConfigPagesList in
-        perform isNull := comparePageToNull phyConfigPagesList in
-        if isNull then ret false else
+        (* perform isNull := comparePageToNull phyConfigPagesList in
+        if isNull then ret false else *)
 
         (** descChild virtual address *)
         perform phyDescChild := readPhyEntry ptDescChildFromPD idxDescChild in
-        perform isNull := comparePageToNull phyDescChild in
-        if isNull then ret false else
+        (* perform isNull := comparePageToNull phyDescChild in
+        if isNull then ret false else *)
 
         (**  Set all given pages as not accessible *)
         writeAccessible ptPDChildFromPD idxPDChild false ;;
@@ -249,11 +249,6 @@ Definition createPartition (descChild pdChild shadow1Child shadow2Child
         writeAccessible ptDescChildFromPD idxDescChild false ;; 
         writeAccessibleRec nbPage descChild currentPart false;;
         (** Set all given pages as not accessible in all ancestors **)
-
-       
-        
-
-
 
         perform zero := MALInternal.Index.zero in
         (** Initialize phyPDChild table *)

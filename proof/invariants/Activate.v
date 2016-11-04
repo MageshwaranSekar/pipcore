@@ -181,6 +181,26 @@ f_equal.
 apply IHn.
 Qed.
 
+Lemma getconfigPagesUpdateCurrentDescriptor partition phyVA s:
+getConfigPages partition s = 
+getConfigPages partition {| currentPartition := phyVA; memory := memory s |}.
+Proof.
+unfold getConfigPages. f_equal.
+unfold getConfigPagesAux.
+simpl.
+destruct (StateLib.getPd partition (memory s) ); trivial. 
+destruct ( getFstShadow partition (memory s)); trivial.
+destruct ( getSndShadow partition (memory s)); trivial.
+destruct(  getConfigTablesLinkedList partition (memory s) ); trivial.
+rewrite <- getIndirectionsUpdateCurrentPartition with phyVA p s.
+rewrite <- getIndirectionsUpdateCurrentPartition with phyVA p0 s.
+rewrite <- getIndirectionsUpdateCurrentPartition with phyVA p1 s.
+do 7 f_equal. 
+clear p partition p0 p1.
+revert phyVA p2.
+apply getTrdShadowsUpdateCurrentPartition. 
+Qed.
+
 Lemma getUsedPagesUpdateCurrentDescriptor s phyVA child1:
 getUsedPages child1 s =
 getUsedPages child1 {| currentPartition := phyVA; memory := memory s |}.
@@ -188,21 +208,7 @@ Proof.
 unfold getUsedPages.
 rewrite <- getMappedPagesUpdateCurrentPartition with phyVA child1 s.
 f_equal.
-unfold getConfigPages. f_equal.
-unfold getConfigPagesAux.
-simpl.
-destruct (StateLib.getPd child1 (memory s) ); trivial. 
-destruct ( getFstShadow child1 (memory s)); trivial.
-destruct ( getSndShadow child1 (memory s)); trivial.
-destruct(  getConfigTablesLinkedList child1 (memory s) ); trivial.
-rewrite <- getIndirectionsUpdateCurrentPartition with phyVA p s.
-rewrite <- getIndirectionsUpdateCurrentPartition with phyVA p0 s.
-rewrite <- getIndirectionsUpdateCurrentPartition with phyVA p1 s.
-f_equal. f_equal. f_equal. f_equal. f_equal. f_equal.
-f_equal.
-clear p child1 p0 p1.
-revert phyVA p2.
-apply getTrdShadowsUpdateCurrentPartition. 
+apply getconfigPagesUpdateCurrentDescriptor.
 Qed.
 
 Lemma getPdsVAddrUpdateCurrentPartition phyVA parent lvl l  s :
@@ -443,6 +449,55 @@ rewrite <- getAccessibleMappedPageUpdateCurrentPartition .
 trivial.
 Qed.
 
+Lemma noCycleInPartitionTreeUpdateCurrentPartition
+parent s :
+noCycleInPartitionTree s -> 
+noCycleInPartitionTree 
+{| currentPartition := parent; memory := memory s |} .
+Proof.
+unfold noCycleInPartitionTree.
+simpl.
+assert (getPartitions multiplexer {| currentPartition := parent; memory := memory s |} = 
+        getPartitions multiplexer s).
+symmetry.
+apply getPartitionsUpdateCurrentDescriptor.
+rewrite H in *;clear H.
+trivial.
+Qed.
+
+Lemma configTablesAreDifferentUpdateCurrentPartition
+parent s : 
+configTablesAreDifferent s -> configTablesAreDifferent
+{| currentPartition := parent; memory := memory s |} .
+Proof.
+unfold configTablesAreDifferent.
+simpl.
+assert (getPartitions multiplexer {| currentPartition := parent; memory := memory s |} = 
+        getPartitions multiplexer s).
+symmetry.
+apply getPartitionsUpdateCurrentDescriptor.
+rewrite H in *;clear H.
+assert (Hconfig : forall partition ,getConfigPages partition s =getConfigPages partition {| currentPartition := parent; memory := memory s |}
+).
+intros. 
+apply getconfigPagesUpdateCurrentDescriptor.
+intros.
+rewrite <-  Hconfig.
+rewrite <-  Hconfig.
+apply H;trivial.
+Qed.
+
+Lemma isChildUpdateCurrentPartition phyVA s :
+isChild s ->
+isChild {| currentPartition := phyVA; memory := memory s |}.
+Proof.
+unfold isChild;intros.
+rewrite <- getChildrenUpdateCurrentDescriptor with parent phyVA s;trivial.
+rewrite  <-getPartitionsUpdateCurrentDescriptor in *.
+simpl in *.
+apply H;trivial.
+Qed.
+
 Lemma activateChild descChild vaNotNulll currPart
 root isMultiplexer nbL  ptpd lastIndex phyVA pd: 
 {{ fun s : state =>((((((((((((partitionsIsolation s /\ kernelDataIsolation s /\ verticalSharing s /\ consistency s) /\
@@ -568,8 +623,24 @@ split.
          rewrite  <-getPartitionsUpdateCurrentDescriptor in H.
          rewrite <- getAccessibleMappedPageUpdateCurrentPartition in *.
          rewrite  isAccessibleMappedPageInParentUpdateCurrentPartition.
-         apply Haccess with pd0;trivial.  }
-Qed.
+         apply Haccess with pd0;trivial. 
+       + apply noCycleInPartitionTreeUpdateCurrentPartition;
+         intuition.
+       + apply configTablesAreDifferentUpdateCurrentPartition; intuition.
+       + apply isChildUpdateCurrentPartition;intuition.
+       + unfold isPresentNotDefaultIff in *;simpl; intuition.
+         assert(Hcons : forall (table : page) (idx : index),
+         StateLib.readPresent table idx (memory s) = Some false <->
+         StateLib.readPhyEntry table idx (memory s) = Some defaultPage) by trivial.
+         apply Hcons;trivial.
+       + unfold isPresentNotDefaultIff in *;simpl; intuition.
+         assert(Hcons : forall (table : page) (idx : index),
+         StateLib.readPresent table idx (memory s) = Some false <->
+         StateLib.readPhyEntry table idx (memory s) = Some defaultPage) by trivial.
+         apply Hcons;trivial.
+       +     (** physicalPageNotDerived **)
+    admit. (* physicalPageNotDerived *)}
+Admitted.
 
 Lemma activateParent parent currPart root descChild :
 {{ fun s : state =>
@@ -677,5 +748,21 @@ split.
        rewrite <- getAccessibleMappedPageUpdateCurrentPartition in *.
        rewrite  isAccessibleMappedPageInParentUpdateCurrentPartition.
        apply Haccess with pd;trivial.
-          }
-Qed.
+       + apply noCycleInPartitionTreeUpdateCurrentPartition;
+         intuition.
+       + apply configTablesAreDifferentUpdateCurrentPartition; intuition.
+       + apply isChildUpdateCurrentPartition;intuition.
+       + unfold isPresentNotDefaultIff in *;simpl; intuition.
+         assert(Hcons : forall (table : page) (idx : index),
+         StateLib.readPresent table idx (memory s) = Some false <->
+         StateLib.readPhyEntry table idx (memory s) = Some defaultPage) by trivial.
+         apply Hcons;trivial.
+       + unfold isPresentNotDefaultIff in *;simpl; intuition.
+         assert(Hcons : forall (table : page) (idx : index),
+         StateLib.readPresent table idx (memory s) = Some false <->
+         StateLib.readPhyEntry table idx (memory s) = Some defaultPage) by trivial.
+         apply Hcons;trivial.
+       +     (** physicalPageNotDerived **)
+    admit. (* physicalPageNotDerived *)
+         }
+Admitted.

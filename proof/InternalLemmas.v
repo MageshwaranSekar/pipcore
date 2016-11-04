@@ -2201,6 +2201,7 @@ unfold getIndirections in H2.
 assumption.
 Qed.
 
+      
 Lemma pdSh1Sh2ListExistsNotNull  (s: state): 
 partitionDescriptorEntry s -> 
 forall partition, In partition (getPartitions multiplexer s) -> 
@@ -2237,6 +2238,45 @@ repeat split.
   right; right; right; left. trivial.
 Qed.
 
+Lemma isConfigTable descChild ptRefChild descParent s :
+partitionDescriptorEntry s -> 
+In descParent (getPartitions multiplexer s) -> 
+(forall idx : index,
+StateLib.getIndexOfAddr descChild fstLevel = idx ->
+isPE ptRefChild idx s /\ getTableAddrRoot ptRefChild PDidx descParent descChild s) -> 
+(defaultPage =? ptRefChild) = false -> 
+In ptRefChild (getConfigPages descParent s).
+Proof.
+intros Hpde Hpart Hget Hnotnull.
+apply pdSh1Sh2ListExistsNotNull  with s descParent in Hpde.
+destruct Hpde as ((pd & Hpd & Hpdnotnull) 
+  & (sh1 & Hsh1 & Hsh1notnull) & (sh2 & Hsh2 & Hsh2notnull) & 
+  (sh3 & Hsh3 & Hsh3notnull)).
+unfold getConfigPages.
+unfold getConfigPagesAux.
+rewrite Hpd, Hsh1, Hsh2, Hsh3.
+simpl.
+do 2 right.
+rewrite in_app_iff.
+left.
+unfold getIndirections.
+destruct Hget with (StateLib.getIndexOfAddr descChild fstLevel) ;trivial.
+clear Hget.
+unfold getTableAddrRoot in *.
+destruct H0 as(_ & H0).
+rewrite <- nextEntryIsPPgetPd in *.
+apply H0 in Hpd.
+clear H0.
+destruct Hpd as (nbL & HnbL & stop & Hstop & Hind).
+apply getIndirectionInGetIndirections with descChild nbL stop;trivial.
+assert(0<nbLevel) by apply nbLevelNotZero;trivial.
+apply beq_nat_false in Hnotnull.
+unfold not;intros.
+subst.
+now contradict Hnotnull.
+apply getNbLevelLe in HnbL;trivial.
+assumption. 
+Qed.
 
 Lemma mappedPageIsNotPTable (table1 table2 currentPart root : page)
 F  idxroot  va idx1 (s : state): 
@@ -2792,6 +2832,7 @@ Qed.
   Lemma verticalSharing2 child parent s :
   incl (getUsedPages child s) (getMappedPages parent s) -> 
   incl (getMappedPages child s) (getMappedPages parent s).
+  Proof.
   unfold incl.
   intros.
   apply H.
@@ -2799,3 +2840,206 @@ Qed.
   apply in_app_iff.
   right;trivial.
   Qed.
+
+
+
+Lemma isAncestorTrans ancestor descParent currentPart s:
+StateLib.getParent descParent (memory s) = Some ancestor -> 
+isAncestor currentPart descParent s -> 
+isAncestor currentPart ancestor s.
+Proof.
+intros.
+unfold isAncestor in *.
+destruct H0.
+subst.
+right. 
+unfold getAncestors.
+destruct nbPage.
+simpl.
+intros.
+rewrite H.
+simpl.
+left.
+trivial.
+intros.
+simpl in *.
+rewrite H.
+simpl;left;trivial.
+right.
+unfold getAncestors in *.
+assert (HnbPage : nbPage  >= nbPage ) by omega.
+revert ancestor descParent currentPart HnbPage H H0.
+generalize nbPage at 1 3 4 .
+intros.
+revert ancestor descParent currentPart HnbPage H H0.
+induction (n).
+simpl.
+intros.
+assert(0 < nbPage) by apply nbPageNotZero.
+omega.
+simpl.
+intros.
+case_eq(StateLib.getParent currentPart (memory s));intros; rewrite H1 in *;
+try now contradict H0.
+simpl in *.
+destruct H0.
+subst.
+right.
+destruct n0.
+simpl. rewrite H.
+simpl.
+left. trivial.
+simpl.
+rewrite H.
+simpl;left;trivial.
+right.
+apply IHn0 with descParent;trivial.
+assert(0 < nbPage) by apply nbPageNotZero.
+admit. (** isAncestorTrans **)
+Admitted.
+Lemma isAncestorTrans2 ancestor descParent currentPart s:
+StateLib.getParent descParent (memory s) = Some ancestor -> 
+In descParent (getAncestors currentPart s) -> 
+In ancestor (getAncestors currentPart s).
+Proof.
+intros.
+unfold getAncestors in *.
+assert (HnbPage : nbPage  >= nbPage ) by omega.
+revert ancestor descParent currentPart HnbPage H H0.
+generalize nbPage at 1 3 4 .
+intros.
+revert ancestor descParent currentPart HnbPage H H0.
+induction (n).
+simpl.
+intros.
+assert(0 < nbPage) by apply nbPageNotZero.
+omega.
+simpl.
+intros.
+case_eq(StateLib.getParent currentPart (memory s));intros; rewrite H1 in *;
+try now contradict H0.
+simpl in *.
+destruct H0.
+subst.
+right.
+destruct n0.
+simpl. rewrite H.
+simpl.
+left. trivial.
+simpl.
+rewrite H.
+simpl;left;trivial.
+right.
+apply IHn0 with descParent;trivial.
+assert(0 < nbPage) by apply nbPageNotZero.
+admit. (** isAncestorTrans **)
+Admitted.
+
+Lemma parentIsAncestor partition ancestor s:
+nextEntryIsPP partition PPRidx ancestor s -> 
+In ancestor (getAncestors partition s).
+Proof.
+intros Hpd.
+rewrite nextEntryIsPPgetParent in *.
+unfold getAncestors.
+destruct nbPage;
+simpl;
+rewrite Hpd;simpl;left;trivial.
+Qed.
+
+Lemma phyPageNotDefault table idx phyPage s : 
+isPresentNotDefaultIff s -> 
+entryPresentFlag table idx true s -> 
+isEntryPage table idx phyPage s -> 
+(defaultPage =? phyPage) = false.
+Proof.
+intros.
+unfold isPresentNotDefaultIff in *.
+assert (StateLib.readPhyEntry table idx (memory s) = Some phyPage).
+{ unfold StateLib.readPhyEntry.
+ unfold isEntryPage in *.
+ case_eq(lookup table idx (memory s) beqPage beqIndex);intros * Hi;
+ rewrite Hi in *;try now contradict H1.
+ case_eq v;intros * Hii;
+ rewrite Hii in *;try now contradict H1.
+ subst;trivial. }
+assert (StateLib.readPresent table idx (memory s) = Some true).
+{ unfold StateLib.readPresent .
+  unfold entryPresentFlag in *.
+  case_eq(lookup table idx (memory s) beqPage beqIndex);intros * Hi;
+  rewrite Hi in *;try now contradict H1.
+  case_eq v;intros * Hii;
+  rewrite Hii in *;try now contradict H1.
+  subst;f_equal;symmetry; trivial. }
+clear H1 H0.
+apply Nat.eqb_neq.
+unfold not;intros;subst.
+destruct phyPage;destruct defaultPage.
+simpl in *.
+subst.
+assert(Hp0 = Hp).
+apply proof_irrelevance;trivial.
+subst.
+apply H in H2.
+rewrite H2 in H3.
+inversion H3.
+Qed.
+
+Lemma phyPageIsPresent table idx entry s : 
+isPresentNotDefaultIff s -> 
+ lookup table idx (memory s) beqPage beqIndex = Some (PE entry) -> 
+(defaultPage =? pa entry) = false -> 
+present entry = true.
+Proof.
+intros.
+unfold isPresentNotDefaultIff in *.
+assert (StateLib.readPhyEntry table idx (memory s) = Some (pa entry)).
+{ unfold StateLib.readPhyEntry.
+  rewrite H0. trivial. }
+apply beq_nat_false in H1.
+assert (~ (present entry = false) -> present entry = true ).
+intros.
+unfold not in *.
+destruct ( present entry); trivial.
+contradict H3;trivial.
+apply H3.
+unfold not.
+intros.
+clear H3.
+generalize (H table idx);clear H; intros H.
+destruct H as (Hii & Hi).
+assert(StateLib.readPresent table idx (memory s) = Some false).
+unfold StateLib.readPresent.
+rewrite H0.
+f_equal;trivial.
+apply Hii in H.
+clear Hi Hii.
+apply H1.
+rewrite  H in H2.
+inversion H2;trivial.
+Qed.
+
+Lemma accessiblePAgeIsMapped pd s va accessiblePage :
+getAccessibleMappedPage pd s va = Some accessiblePage -> 
+getMappedPage pd s va = Some accessiblePage.
+Proof.
+intros.
+unfold getMappedPage.
+unfold getAccessibleMappedPage in *.
+destruct( StateLib.getNbLevel);try now contradict H.
+destruct ( getIndirection pd va l (nbLevel - 1) s );try now contradict H.
+destruct(defaultPage =? p);try now contradict H.
+destruct(StateLib.readPresent p (StateLib.getIndexOfAddr va fstLevel) (memory s) );
+try
+ now contradict H.
+ destruct b;try now contradict H.
+destruct( StateLib.readAccessible p (StateLib.getIndexOfAddr va fstLevel) (memory s));
+try now contradict H.
+destruct b;try now contradict H.
+
+trivial.
+Qed.
+
+
+
+

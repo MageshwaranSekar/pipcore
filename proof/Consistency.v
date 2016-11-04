@@ -127,43 +127,6 @@ forall partition va pd sh1 page,
   getAccessibleMappedPage pd s va = Some page -> 
   getPDFlag sh1 va s = false.
 
-Definition isAccessibleMappedPageInParent partition va accessiblePage s:=
-match StateLib.getSndShadow partition (memory s) with 
-| Some sh2 => 
-  match  getVirtualAddressSh2 sh2 s va  with 
-   | Some vaInParent => 
-     match StateLib.getParent partition (memory s) with 
-      | Some parent => 
-        match StateLib.getPd parent (memory s) with 
-         | Some pdParent => 
-           match getAccessibleMappedPage pdParent s vaInParent with 
-            | Some sameAccessiblePage => accessiblePage =? sameAccessiblePage
-            | None => false
-           end
-         | None => false
-        end
-    | None => false
-           end
-| None => false
-           end
-| None => false
-end.
-
-(** ** The [accessibleChildPhysicalPageIsAccessibleIntoParent] requires that all accessible physical 
-      pages into a given partition should be accessible into its parent *)
-Definition accessibleChildPhysicalPageIsAccessibleIntoParent' s := 
-forall partition va pd parent entry sh2 pdParent vaInParent , 
-  In partition (getPartitions multiplexer s) ->
-  StateLib.getPd partition (memory s) = Some pd ->
-  getAccessibleMappedPage pd s va = Some (pa entry) ->
-  
-  
-  StateLib.getParent partition (memory s) = Some parent -> 
-  StateLib.getSndShadow partition (memory s) = Some sh2 -> 
-  getVirtualAddressSh2 sh2 s va = Some vaInParent -> 
-  StateLib.getPd parent (memory s) = Some pdParent -> 
-  getAccessibleMappedPage pdParent s vaInParent = Some (pa entry).
-
 (** ** The [accessibleChildPhysicalPageIsAccessibleIntoParent] requires that all accessible physical 
       pages into a given partition should be accessible into its parent *)
 Definition accessibleChildPhysicalPageIsAccessibleIntoParent s := 
@@ -172,13 +135,53 @@ forall partition va pd  accessiblePage,
   StateLib.getPd partition (memory s) = Some pd ->
   getAccessibleMappedPage pd s va = Some accessiblePage ->
   isAccessibleMappedPageInParent partition va accessiblePage s = true. 
-(*  exists parent sh2 vaInParent pdParent,  
-  StateLib.getParent partition (memory s) = Some parent /\
-  StateLib.getSndShadow partition (memory s) = Some sh2 /\ 
-  getVirtualAddressSh2 sh2 s va = Some vaInParent /\ 
-  StateLib.getPd parent (memory s) = Some pdParent /\ 
-  getAccessibleMappedPage pdParent s vaInParent = Some phypage *)
-  
+
+(** ** The [noCycleInPartitionTree] requires that a partition and 
+        its ancestors are different **)
+Definition noCycleInPartitionTree s := 
+forall ancestor partition, 
+In partition (getPartitions multiplexer s) -> 
+In ancestor (getAncestors partition s) -> 
+ancestor <> partition.
+
+(** ** The [configTablesAreDifferent] requires that configuation tables of different
+        partitions are disjoint **)
+Definition configTablesAreDifferent s := 
+forall partition1 partition2,
+In partition1 (getPartitions multiplexer s) -> 
+In partition2 (getPartitions multiplexer s) -> 
+partition1 <> partition2 -> 
+disjoint (getConfigPages partition1 s) (getConfigPages partition2 s).
+
+(** ** The [isChild] specifies that a given partition should be a child of the 
+        physical page stored as parent into the associated partition descriptor **)
+Definition isChild  s :=
+forall partition parent : page,
+In partition (getPartitions multiplexer s) -> 
+StateLib.getParent partition (memory s) = Some parent -> 
+In partition (getChildren parent s).
+
+(** ** The [isPresentNotDefaultIff] specifies that if the present flag of a physical 
+    entry is equal to false so the associated physical page must be equal to the default 
+    value **)
+Definition isPresentNotDefaultIff s:=
+forall table idx , 
+ readPresent table idx (memory s) = Some false <-> 
+ readPhyEntry table idx (memory s) = Some defaultPage .
+
+(** ** The [physicalPageNotDerived] specifies that if a given physical
+    page is marked as not derived in a parent so it is not mapped in any child **) 
+Definition physicalPageNotDerived s := 
+forall parent va pdParent pageParent, 
+StateLib.getPd parent (memory s) = Some pdParent -> 
+~ isDerived parent va s -> 
+getMappedPage pdParent s va = Some pageParent -> 
+forall child pdChild vaInChild pageChild , 
+In child (getChildren parent s) -> 
+StateLib.getPd child (memory s) = Some pdChild -> 
+getMappedPage pdChild s vaInChild = Some  pageChild -> 
+pageParent <> pageChild.
+
 (** ** Conjunction of all consistency properties *)
 Definition consistency s := 
  partitionDescriptorEntry s /\  
@@ -190,4 +193,9 @@ Definition consistency s :=
  noDupConfigPagesList s  /\
  parentInPartitionList s /\
  accessibleVAIsNotPartitionDescriptor s /\
- accessibleChildPhysicalPageIsAccessibleIntoParent s.
+ accessibleChildPhysicalPageIsAccessibleIntoParent s /\
+ noCycleInPartitionTree s /\ 
+ configTablesAreDifferent s /\ 
+ isChild s /\
+ isPresentNotDefaultIff s /\
+ physicalPageNotDerived s.

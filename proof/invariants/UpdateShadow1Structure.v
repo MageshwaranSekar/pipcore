@@ -1455,6 +1455,159 @@ unfold accessibleChildPhysicalPageIsAccessibleIntoParent in *.
 apply Haccess with pd;trivial.
 Qed.
 
+Lemma getAncestorsAddDerivation partition table idx descChild entry s :
+lookup table idx (memory s) beqPage beqIndex = Some (VE entry) -> 
+getAncestors partition
+{|
+currentPartition := currentPartition s;
+memory := add table idx (VE {| pd := false; va := descChild |}) (memory s) beqPage beqIndex |} =
+getAncestors partition s.
+Proof.
+intros.
+unfold getAncestors.
+simpl.
+revert partition.
+induction  (nbPage + 1) ;
+simpl;intros;trivial.
+simpl.
+assert(Hparent :  getParent partition
+(add table idx (VE {| pd := false; va := descChild |}) (memory s) beqPage beqIndex) =
+getParent partition
+(memory s)).
+apply getParentAddDerivation with entry ;trivial.
+
+rewrite Hparent in *.
+destruct (getParent partition (memory s));trivial.
+f_equal.
+apply IHn;trivial.
+Qed.
+
+Lemma noCycleInPartitionTreeUpdtateSh1Structure s descChild table idx  entry:
+lookup table idx (memory s) beqPage beqIndex = Some (VE entry) -> 
+(StateLib.readPDflag table idx (memory s) = Some false \/
+StateLib.readPDflag table idx (memory s) = None) -> 
+noCycleInPartitionTree s -> 
+noCycleInPartitionTree {|
+  currentPartition := currentPartition s;
+  memory := add table idx (VE {| pd := false; va := descChild |}) 
+              (memory s) beqPage beqIndex |}.
+Proof.
+intros Hlookup Hflag.
+unfold noCycleInPartitionTree.
+intros.
+simpl in *.
+set(s':= {|
+          currentPartition := currentPartition s;
+          memory := add table idx (VE {| pd := false; va := descChild |}) 
+          (memory s) beqPage beqIndex |}) in *.
+assert(Hgetparts : getPartitions multiplexer s' = getPartitions multiplexer s).
+{ apply getPartitionsAddDerivation with entry; trivial. }
+rewrite Hgetparts in *.
+clear Hgetparts.
+assert(Hparent : getAncestors partition s' =
+       getAncestors partition s).
+       unfold s'.
+       apply getAncestorsAddDerivation with entry;trivial.
+       rewrite Hparent in *.
+apply H;trivial.
+Qed.
+
+Lemma configTablesAreDifferentUpdtateSh1Structure s descChild table idx  entry:
+lookup table idx (memory s) beqPage beqIndex = Some (VE entry) -> 
+(StateLib.readPDflag table idx (memory s) = Some false \/
+StateLib.readPDflag table idx (memory s) = None) -> 
+configTablesAreDifferent s -> 
+configTablesAreDifferent {|
+  currentPartition := currentPartition s;
+  memory := add table idx (VE {| pd := false; va := descChild |}) 
+              (memory s) beqPage beqIndex |}.
+Proof.
+intros Hlookup Hflag.
+unfold configTablesAreDifferent.
+intros.
+set(s':= {|
+          currentPartition := currentPartition s;
+          memory := add table idx (VE {| pd := false; va := descChild |}) 
+          (memory s) beqPage beqIndex |}) in *.
+assert(Hgetparts : getPartitions multiplexer s' = getPartitions multiplexer s).
+{ apply getPartitionsAddDerivation with entry; trivial. }
+rewrite Hgetparts in *.
+clear Hgetparts.
+simpl in *.
+assert(Hconfig : getConfigPages partition1 s' = getConfigPages partition1 s).
+apply getConfigPagesAddDerivation with entry;trivial.
+rewrite Hconfig; clear Hconfig.
+assert(Hconfig : getConfigPages partition2 s' = getConfigPages partition2 s).
+apply getConfigPagesAddDerivation with entry;trivial.
+rewrite Hconfig; clear Hconfig.
+apply H;trivial.
+Qed.
+Lemma isChildUpdtateSh1Structure table idx  entry descChild s :
+lookup table idx (memory s) beqPage beqIndex = Some (VE entry) -> 
+(StateLib.readPDflag table idx (memory s) = Some false \/
+StateLib.readPDflag table idx (memory s) = None) -> 
+isChild s -> 
+isChild
+  {|
+  currentPartition := currentPartition s;
+  memory := add table idx (VE {| pd := false; va := descChild |}) (memory s) beqPage beqIndex |}.
+Proof.
+intros.
+unfold isChild in *.
+intros.
+simpl in *.
+set(s':= {|
+          currentPartition := currentPartition s;
+          memory := add table idx (VE {| pd := false; va := descChild |}) 
+          (memory s) beqPage beqIndex |}) in *.
+assert(Hchildren : 
+getChildren parent s' 
+   = getChildren parent s).
+apply getChildrenAddDerivation with entry;trivial.
+rewrite Hchildren in *;clear Hchildren.
+assert(Hgetparts : getPartitions multiplexer s' = getPartitions multiplexer s).
+{ apply getPartitionsAddDerivation with entry; trivial. }
+rewrite Hgetparts in *.
+clear Hgetparts.
+assert(Hparent : getParent partition
+       (add table idx (VE {| pd := false; va := descChild |}) (memory s) beqPage beqIndex) =
+       getParent partition (memory s)).
+       
+apply getParentAddDerivation with entry ;trivial.
+rewrite Hparent in *.
+apply H1;trivial.
+Qed. 
+
+ Lemma isPresentNotDefaultIffAddDerivation  table idx descChild s :
+ isPresentNotDefaultIff s -> 
+isPresentNotDefaultIff
+  {|
+  currentPartition := currentPartition s;
+  memory := add table idx (VE {| pd := false; va := descChild |}) (memory s) beqPage beqIndex |}.
+Proof.
+intros.
+unfold isPresentNotDefaultIff in *.
+simpl.
+intros table0 idx0.
+unfold StateLib.readPresent.
+unfold StateLib.readPhyEntry.
+simpl. 
+case_eq(beqPairs  (table, idx) (table0, idx0) beqPage beqIndex); 
+intros * Haa.
+split;
+intros * Hi;
+now contradict Hi.
+assert(lookup table0 idx0 (removeDup table idx (memory s) beqPage beqIndex) beqPage beqIndex
+= lookup table0 idx0  (memory s) beqPage beqIndex).
+apply removeDupIdentity.
+apply beqPairsFalse in Haa.
+intuition.
+rewrite H0.
+unfold StateLib.readPresent in *.
+unfold StateLib.readPhyEntry in *.
+trivial.
+Qed. 
+  
 Lemma consistencyUpdtateSh1Structure (descChild : vaddr) table idx entry (s : state):
 lookup table idx (memory s) beqPage beqIndex = Some (VE entry) -> 
 (StateLib.readPDflag table idx (memory s) = Some false \/ 
@@ -1486,9 +1639,19 @@ split.
 apply parentInPartitionListAddDerivation with entry; intuition.
 split.
 apply accessibleVAIsNotPartitionDescriptorAddDerivation with entry; intuition.
-apply accessibleChildPhysicalPageIsAccessibleIntoParentAddDerivation with entry;
-intuition.
-Qed.
+split.
+apply accessibleChildPhysicalPageIsAccessibleIntoParentAddDerivation with entry;intuition.
+split.
+apply noCycleInPartitionTreeUpdtateSh1Structure with entry;intuition.
+split.
+apply configTablesAreDifferentUpdtateSh1Structure with entry ;intuition.
+split.
+apply isChildUpdtateSh1Structure with entry ;intuition.
+split.
+apply isPresentNotDefaultIffAddDerivation ;intuition.
+    (** physicalPageNotDerived **)
+    admit. (* physicalPageNotDerived *)
+Admitted.
 
 Lemma getTableRootAddDerivation table1 idx1 table2 idx2 partition   
 va idxVa (descChild : vaddr) entry (s : state) f :
@@ -1635,4 +1798,23 @@ assert(Htrue : beqPairs (table, idx) (table, idx) beqPage beqIndex = true).
 apply beqPairsTrue;split;trivial.
 rewrite Htrue.
 cbn;trivial.
+Qed.
+
+Lemma isEntryVASameValue table1 table2 idx1 idx2 vaValue  s : 
+isEntryVA table1 idx1 vaValue s ->
+isEntryVA table1 idx1 vaValue
+{| currentPartition := currentPartition s;
+   memory := add table2 idx2 (VE {| pd := false; va := vaValue |}) 
+            (memory s) beqPage beqIndex |}.
+Proof.
+unfold isEntryVA.
+cbn.
+case_eq(beqPairs (table2, idx2) (table1, idx1) beqPage beqIndex);
+intros * Hpairs;simpl;trivial.
+assert(lookup table1 idx1 (removeDup table2 idx2 (memory s) beqPage beqIndex) 
+beqPage beqIndex = lookup table1 idx1 (memory s) beqPage beqIndex ).
+apply beqPairsFalse in Hpairs.
+apply removeDupIdentity;intuition.
+rewrite H.
+trivial. 
 Qed.

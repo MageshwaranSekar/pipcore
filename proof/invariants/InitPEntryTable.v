@@ -387,6 +387,12 @@ induction n.  simpl.
    split.
    unfold s'. 
    apply propagatedPropertiesUpdateMappedPageData; trivial.
+   rewrite Hnull.
+   (** isPresentNotDefaultIff **)
+   apply isPresentNotDefaultIffRightValue.
+   unfold propagatedProperties in *.
+   unfold consistency in *.
+   intuition.
    split.
    trivial.
    split.
@@ -486,6 +492,12 @@ induction n.  simpl.
     split.
     unfold s'. 
     apply propagatedPropertiesUpdateMappedPageData; trivial.
+    (** isPresentNotDefaultIff **)
+    rewrite Hnull.
+   apply isPresentNotDefaultIffRightValue.
+   unfold propagatedProperties in *.
+   unfold consistency in *.
+   intuition.
 
    split.
    trivial.
@@ -639,10 +651,18 @@ induction n.  simpl.
    split.
    unfold s'. 
    apply propagatedPropertiesUpdateMappedPageData; trivial.
+      (** isPresentNotDefaultIff **)
+    rewrite Hnull.
+   apply isPresentNotDefaultIffRightValue.
+   unfold propagatedProperties in *.
+   unfold consistency in *.
+      intuition.
    assert (Hpde :partitionDescriptorEntry s).
    { unfold propagatedProperties in *.
      unfold consistency in *.
      intuition. }
+    
+
     split; trivial.
     split; trivial.
     split; trivial.
@@ -809,6 +829,12 @@ induction n.  simpl.
     split.
     unfold s'. 
     apply propagatedPropertiesUpdateMappedPageData; trivial.
+       (** isPresentNotDefaultIff **)
+    rewrite Hnull.
+   apply isPresentNotDefaultIffRightValue.
+   unfold propagatedProperties in *.
+   unfold consistency in *.
+      intuition.
     assert (Hpde :partitionDescriptorEntry s).
      { unfold propagatedProperties in *.
        unfold consistency in *.

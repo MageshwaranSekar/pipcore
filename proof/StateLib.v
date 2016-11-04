@@ -229,6 +229,17 @@ let entry :=  lookup paddr idx memory beqPage beqIndex  in
   | None => None
  end. 
 
+(** The [readVirEntry] function returns the virtual address strored into a given table 
+    at a given position in memory. The table should contain a VEntry at this position 
+    (The type [VEntry] is already defined in [Model.ADT]) *)
+Definition readVirEntry (paddr : page) (idx : index) memory : option vaddr :=
+let entry :=  lookup paddr idx memory beqPage beqIndex  in 
+  match entry with
+  | Some (VE addr) => Some (va addr)
+  | Some _ => None
+  | None => None
+ end. 
+ 
 (** The [getDefaultPage] function returns the value of the default page *)
 Definition getDefaultPage := defaultPage.
 
@@ -271,8 +282,8 @@ match getNbLevel  with
                end
 end.
 
-(** The [getVirtualAddress] function returns the virtual address stored into the second shadow structure 
-   which corresponds to a given virtual address **)
+(** The [getVirtualAddressSh2] function returns the virtual address stored into the 
+    second shadow structure which corresponds to a given virtual address **)
 Definition getVirtualAddressSh2 sh2 s va: option vaddr :=
 match getNbLevel  with 
  |None => None
@@ -281,6 +292,20 @@ match getNbLevel  with
                 | Some tbl =>  if defaultPage =? tbl
                                    then None 
                                    else readVirtual tbl idxVA s.(memory) 
+                | _ => None
+               end
+end.
+
+(** The [getVirtualAddressSh1] function returns the virtual address stored into the first
+   shadow structure which corresponds to a given virtual address **)
+Definition getVirtualAddressSh1 sh1 s va: option vaddr :=
+match getNbLevel  with 
+ |None => None
+ |Some level => let idxVA := getIndexOfAddr va fstLevel  in 
+               match getIndirection sh1 va level (nbLevel - 1) s with 
+                | Some tbl =>  if defaultPage =? tbl
+                                   then None 
+                                   else readVirEntry tbl idxVA s.(memory) 
                 | _ => None
                end
 end.
@@ -676,6 +701,51 @@ match getNbLevel with
 | None => false
 end.
 
+(** The [isAccessibleMappedPageInParent] function returns true if the given physical
+    page is accessible in the parent of the given partition **)
+Definition isAccessibleMappedPageInParent partition va accessiblePage s  :=
+match getSndShadow partition (memory s) with 
+| Some sh2 => 
+  match  getVirtualAddressSh2 sh2 s va  with 
+   | Some vaInParent => 
+     match getParent partition (memory s) with 
+      | Some parent => 
+        match getPd parent (memory s) with 
+         | Some pdParent => 
+           match getAccessibleMappedPage pdParent s vaInParent with 
+            | Some sameAccessiblePage => accessiblePage =? sameAccessiblePage
+            | None => false
+           end
+         | None => false
+        end
+    | None => false
+           end
+| None => false
+           end
+| None => false
+end.
+
+(** The [isPartitionFalse] returns true if the partition descriptor flag of a given
+     entry is equal to false or there is no data stored into this entry **)  
 Definition isPartitionFalse ptPDChildSh1 idxPDChild s :=
 readPDflag ptPDChildSh1 idxPDChild (memory s) = Some false \/
 readPDflag ptPDChildSh1 idxPDChild (memory s) = None.
+
+(** The [isAncestor] funtion returns true if the given partitions are equal 
+    or the descParent partition is an ancestor of currentPart **)
+Definition isAncestor  currentPart descParent s :=
+( currentPart = descParent \/ In descParent (getAncestors currentPart s)).
+
+(** The [isDerived] funtion returns true if a physical page is derived 
+    into the given partition , this physical page is associated to the given 
+    virtual address [va] **)
+Definition isDerived partition va  s  :=
+match getFstShadow partition (memory s) with 
+| Some sh1 => 
+  match  getVirtualAddressSh1 sh1 s va  with 
+   | Some va0 => beqVAddr defaultVAddr va0 = false
+   | _ => False
+  end
+| None => False
+end. 
+

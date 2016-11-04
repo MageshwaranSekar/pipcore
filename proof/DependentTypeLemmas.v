@@ -249,9 +249,18 @@ apply proof_irrelevance.
 assert (0 < nbLevel) by apply nbLevelNotZero.
 omega.
 now contradict H.
-Qed.  
+Qed.
 
-
+Lemma nbLevelEq :
+nbLevel - 1 = CLevel (nbLevel - 1).
+Proof.
+unfold CLevel.
+case_eq(lt_dec (nbLevel - 1) nbLevel); intros.
+simpl;trivial.
+assert(0<nbLevel) by apply nbLevelNotZero.
+omega.
+Qed.
+ 
 (**** ADT : page **)
 Lemma isDefaultPageFalse : forall p,   (defaultPage =? pa p) = false -> pa p <> defaultPage .
 Proof.
