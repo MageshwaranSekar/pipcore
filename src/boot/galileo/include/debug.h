@@ -59,7 +59,8 @@ int printf(const char *format, ...);
  * \brief Strings for debugging output.
  */
 
-#define DEBUG_HARD 0
+
+#define PIP_DEBUG_MODE 0
 #define CRITICAL	1 //!< Critical output
 #define	ERROR		2 //!< Error output
 #define WARNING		3 //!< Warning output
@@ -72,7 +73,7 @@ int printf(const char *format, ...);
 
 
 #ifndef LOGLEVEL
-#define LOGLEVEL TRACE + 1
+#define LOGLEVEL TRACE
 #endif
 
 /**

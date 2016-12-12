@@ -127,5 +127,7 @@ void initializeGalileoUART(uint32_t portnumber)
 	    while(*string)
 	    	vGalileoPrintc(*string++);
 	}
+
+
  }
  /*-----------------------------------------------------------*/

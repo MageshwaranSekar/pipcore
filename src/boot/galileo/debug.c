@@ -54,7 +54,7 @@ void krn_puts(char *c)
    int i = 0;
    while (c[i])
    {
-       writeSerial(c[i++]);
+       vGalileoPrintc(c[i++]);
    }
 }
 
