@@ -35,7 +35,8 @@
 KERNEL_ADDR=0x100000
 PARTITION_ADDR=0x700000
 STACK_ADDR=0x300000
-TARGET=x86_multiboot
+#TARGET=x86_multiboot
+TARGET=galileo
 PARTITION=minimal
 
 # Include architecture-and-platform-dependent cross-compilation toolchain
